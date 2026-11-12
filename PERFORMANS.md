@@ -48,3 +48,5 @@ Ortak sınırlar: tekrar eden nesneler MultiMesh; Compatibility'ye düşüşte a
 | Aynı su kadrajı, Compatibility'ye düşüş (Yüksek) | - | - | 107 | - / - / 140.968 | - / - / 61 |
 
 Dikey eşzamanlama açıkken Düşük ve Orta ekranın 60 Hz'ine kilitlenir. Yüksek bu bilgisayarda en kötü kadrajda 55 FPS civarı; hedefin (30) üstünde. Ölçümler ardışık çalıştırmalar arasında yaklaşık yüzde 30 oynar (özellikle Düşük/Orta).
+
+Renk dengesi düzeltmesi sonrası (doğuş noktası, elde 5 su, dikey eşzamanlama kapalı): Düşük 270-418 FPS, Orta 123-220 FPS, Yüksek 59,5 FPS; Compatibility'ye düşüşte Orta 164 FPS.

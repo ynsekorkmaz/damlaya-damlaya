@@ -23,6 +23,14 @@ func _init() -> void:
 	test_offline()
 	test_save_roundtrip()
 	test_save_corrupt()
+	test_tool_unlock()
+	test_tool_upgrade()
+	test_source_unlock()
+	test_canal_unlock()
+	test_new_visibility()
+	test_save_new_fields()
+	test_save_v1_migration()
+	test_save_new_corrupt()
 	print("Kontrol: %d, basarisiz: %d" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -42,12 +50,21 @@ func _state() -> GameState:
 	return GameState.new()
 
 
+## Tum alet ve kaynak kilitleri acik durum (eski satin alma testleri icin).
+func _unlocked_state() -> GameState:
+	var s: GameState = GameState.new()
+	s.tool_unlocked = Cfg.TOOLS.size() - 1
+	for def: Dictionary in Cfg.SOURCES:
+		s.unlocked_sources.append(def["id"])
+	return s
+
+
 func _snapshot(s: GameState) -> Dictionary:
 	return SaveCodec.to_dict(s)
 
 
 func test_tools() -> void:
-	var s: GameState = _state()
+	var s: GameState = _unlocked_state()
 	var caps: Array[float] = [5.0, 15.0, 50.0, 140.0, 400.0]
 	check(Economy.tool_capacity(s) == 5.0, "baslangic Avuc 5")
 	check(Economy.cost_tool(s) == 12.0, "Tas maliyeti 12")
@@ -58,7 +75,7 @@ func test_tools() -> void:
 	check(not Economy.buy_tool(s), "son aletten sonra alim yok")
 	check(Economy.cost_tool(s) < 0.0, "son aletten sonra maliyet -1")
 	# Sirali alim: Kova'yi atlayamaz; para yetse de siradaki Tas
-	var t: GameState = _state()
+	var t: GameState = _unlocked_state()
 	t.money = 102.0
 	check(Economy.buy_tool(t) and t.tool_level == 1, "once Tas")
 	check(Economy.buy_tool(t) and t.tool_level == 2, "sonra Kova")
@@ -103,7 +120,7 @@ func test_rate() -> void:
 
 
 func test_source_costs() -> void:
-	var s: GameState = _state()
+	var s: GameState = _unlocked_state()
 	var crack: Array[float] = [15.0, 17.0, 19.0, 22.0]
 	var dew: Array[float] = [100.0, 115.0, 132.0, 152.0]
 	for i: int in 3:
@@ -111,7 +128,7 @@ func test_source_costs() -> void:
 		s.money = 1.0e6
 		check(Economy.buy_source(s, "crack"), "catlak alinir")
 	check(Economy.cost_source(s, "crack") == crack[3], "catlak 4. maliyet")
-	var t: GameState = _state()
+	var t: GameState = _unlocked_state()
 	for i: int in 3:
 		check(Economy.cost_source(t, "dew") == dew[i], "cig maliyeti adet %d" % i)
 		t.money = 1.0e6
@@ -258,6 +275,10 @@ func _rich_state() -> GameState:
 	s.rate_level = 2
 	s.carried = 77.5
 	s.sources = {"crack": 4, "dew": 2}
+	s.tool_unlocked = 3
+	s.tool_upgrades = {"cup": 2, "palm": 1}
+	s.unlocked_sources = ["crack", "dew", "spring"]
+	s.canal_unlocked = true
 	s.loss_upgrades = ["rock_bed", "clay_floor"]
 	s.last_seen_unix = 1700000000
 	return s
@@ -297,3 +318,173 @@ func test_save_corrupt() -> void:
 	check(SaveCodec.from_dict({"version": "x", "money": 5.0}).money == 0.0, "bozuk surum yeni oyun")
 	check(SaveCodec.from_dict({"version": 99, "money": 5.0}).money == 0.0, "gelecek surum yeni oyun")
 	check(SaveCodec.from_dict({"money": 1.0e30}).money == 0.0, "asiri buyuk sayi atilir")
+
+
+func test_tool_unlock() -> void:
+	var s: GameState = _state()
+	check(Economy.is_tool_unlocked(s, 0) and not Economy.is_tool_unlocked(s, 1), "yalniz Avuc acik baslar")
+	check(Economy.cost_tool_unlock(s) == 8.0, "Tas kilidi 8")
+	s.money = 1.0e9
+	check(not Economy.buy_tool(s) and s.tool_level == 0 and s.money == 1.0e9, "kilitsiz alet dukkanda alinamaz, para ayni")
+	check(not Economy.next_tool_unlocked(s), "siradaki kilitli")
+	var costs: Array[float] = [8.0, 60.0, 450.0, 4000.0]
+	for c: float in costs:
+		check(Economy.cost_tool_unlock(s) == c, "kilit maliyeti %f" % c)
+		var before: float = s.money
+		check(Economy.unlock_tool(s) and near(s.money, before - c), "kilit acilir, para duser %f" % c)
+	check(Economy.cost_tool_unlock(s) < 0.0 and not Economy.unlock_tool(s), "son kilitten sonra yok")
+	check(s.tool_unlocked == 4 and s.tool_level == 0, "kilit acmak aleti vermez")
+	check(Economy.buy_tool(s) and s.tool_level == 1, "kilit acikken dukkandan alinir")
+	# Kilitler sirayla acilir
+	var t: GameState = _state()
+	t.money = 7.0
+	check(not Economy.unlock_tool(t) and t.tool_unlocked == 0, "para yetmez")
+	t.money = 8.0
+	check(Economy.unlock_tool(t) and t.tool_unlocked == 1 and Economy.cost_tool_unlock(t) == 60.0, "siradaki Kova kilidi 60")
+	# Siradaki alet kilitliyse para yetse de alinmaz
+	var u: GameState = _state()
+	u.money = 1.0e9
+	Economy.unlock_tool(u)
+	check(Economy.buy_tool(u) and u.tool_level == 1, "Tas alinir")
+	check(not Economy.next_tool_unlocked(u) and not Economy.buy_tool(u) and u.tool_level == 1, "Kova kilitliyken alinmaz")
+
+
+func test_tool_upgrade() -> void:
+	var s: GameState = _state()
+	s.money = 1.0e9
+	check(Economy.cost_tool_upgrade(s, 1) < 0.0 and not Economy.upgrade_tool(s, 1), "sahip olunmayan alet yukseltilemez")
+	check(Economy.cost_tool_upgrade(s, 0) == 5.0, "Avuc yukseltme 5")
+	var palm_costs: Array[float] = [5.0, 9.0, 16.0, 29.0, 52.0] # floor(5 * 1.8^n)
+	var palm_caps: Array[float] = [6.0, 7.0, 8.0, 9.0, 10.0]
+	for n: int in 5:
+		check(Economy.cost_tool_upgrade(s, 0) == palm_costs[n], "Avuc seviye %d maliyeti" % n)
+		check(Economy.upgrade_tool(s, 0), "Avuc yukselir %d" % n)
+		check(near(Economy.tool_capacity(s), palm_caps[n]), "Avuc kapasite seviye %d" % (n + 1))
+	check(Economy.cost_tool_upgrade(s, 0) < 0.0 and not Economy.upgrade_tool(s, 0), "5 seviye tavan")
+	check(near(Economy.tool_capacity(s), 10.0), "5 seviyede 2 kat")
+	check(Economy.tool_upgrade_level(s, 0) == 5, "seviye 5")
+	var t: GameState = _unlocked_state()
+	t.tool_level = 1
+	t.money = 1.0e9
+	check(Economy.cost_tool_upgrade(t, 1) == 10.0 and Economy.upgrade_tool(t, 1), "Tas yukseltme 10")
+	check(near(Economy.tool_capacity(t), 18.0), "Tas 15 -> 18")
+	check(Economy.cost_tool_upgrade(t, 1) == 18.0, "Tas seviye 1 maliyeti floor(10*1.8)")
+	check(Economy.tool_upgrade_level(t, 0) == 0 and near(Economy.tool_capacity_at(t, 0), 5.0), "her aletin seviyesi ayri")
+	check(Economy.cost_tool_upgrade(t, 2) < 0.0, "sahip olunmayan Kova yukseltilemez")
+	var bases: Array[float] = [5.0, 10.0, 70.0, 500.0, 4500.0]
+	for i: int in bases.size():
+		check(Cfg.TOOLS[i]["upgrade_cost"] == bases[i], "taban yukseltme maliyeti %d" % i)
+	t.carried = 0.0
+	Economy.fill(t, 100.0)
+	check(near(t.carried, 18.0), "dolum yukseltilmis kapasiteye kadar")
+	var poor: GameState = _state()
+	poor.money = 4.0
+	var before: Dictionary = _snapshot(poor)
+	check(not Economy.upgrade_tool(poor, 0) and _snapshot(poor) == before, "para yetmezse durum ayni")
+
+
+func test_source_unlock() -> void:
+	var s: GameState = _state()
+	s.money = 1.0e9
+	check(not Economy.buy_source(s, "crack") and s.money == 1.0e9, "kilitsiz kaynak alinamaz")
+	check(Economy.cost_source_unlock(s, "crack") == 7.0, "catlak kilidi floor(15/2)")
+	check(Economy.cost_source_unlock(s, "dew") == 50.0, "cig kilidi 50")
+	check(Economy.cost_source_unlock(s, "rain_cloud") == 550.0 and Economy.cost_source_unlock(s, "stream_mouth") == 75000.0, "kilit maliyetleri")
+	check(Economy.cost_source_unlock(s, "yok") < 0.0 and not Economy.unlock_source(s, "yok"), "bilinmeyen kaynak kilidi")
+	check(Economy.unlock_source(s, "crack") and Economy.source_unlocked(s, "crack"), "kilit acilir")
+	check(Economy.cost_source_unlock(s, "crack") < 0.0 and not Economy.unlock_source(s, "crack"), "ikinci kez acilmaz")
+	check(Economy.buy_source(s, "crack") and Economy.source_count(s, "crack") == 1, "kilit acikken alinir")
+	check(Economy.cost_source(s, "crack") == 17.0, "adet maliyeti 1,15 carpanli")
+	check(not Economy.buy_source(s, "dew"), "baska kaynagin kilidi ayri")
+	var p: GameState = _state()
+	p.money = 6.0
+	check(not Economy.unlock_source(p, "crack") and p.money == 6.0, "para yetmez")
+
+
+func test_canal_unlock() -> void:
+	var s: GameState = _state()
+	check(Economy.cost_canal_unlock(s) == 300.0, "kanal kilidi 300")
+	check(not Economy.canal_section_visible(s), "kanal bolumu gizli")
+	s.total_drops = 1999.0
+	check(not Economy.canal_section_visible(s), "1999 damlada gizli")
+	s.total_drops = 2000.0
+	check(Economy.canal_section_visible(s), "2000 damlada gorunur")
+	s.money = 299.0
+	check(not Economy.unlock_canal(s) and not s.canal_unlocked, "para yetmez")
+	s.money = 300.0
+	check(Economy.unlock_canal(s) and s.canal_unlocked and s.money == 0.0, "kanal acilir")
+	check(Economy.cost_canal_unlock(s) < 0.0 and not Economy.unlock_canal(s), "bir kez")
+	var t: GameState = _state()
+	t.canal_unlocked = true
+	check(Economy.canal_section_visible(t), "acik kanal bolumu gorunur")
+	check(Economy.spend(t, 0.0) and not Economy.spend(t, 1.0) and not Economy.spend(t, -1.0), "spend")
+
+
+func test_new_visibility() -> void:
+	var s: GameState = _state()
+	check(not Economy.tool_row_visible(s, 0), "Avuc satiri baslangicta gizli")
+	s.total_money_earned = 2.5
+	check(Economy.tool_row_visible(s, 0), "Avuc yukseltmesi 2,5 paraya gorunur")
+	check(not Economy.tool_row_visible(s, 1), "Tas kilidi 4 paraya gorunur")
+	s.total_money_earned = 4.0
+	check(Economy.tool_row_visible(s, 1) and not Economy.tool_row_visible(s, 2), "yalniz siradaki kilit")
+	check(not Economy.tool_row_visible(s, 9) and not Economy.tool_row_visible(s, -1), "gecersiz indeks")
+	s.tool_unlocked = 1
+	check(Economy.tool_row_visible(s, 1), "kilidi acik alet satiri kalir")
+	var t: GameState = _state()
+	t.total_money_earned = 3.0
+	check(not Economy.source_row_visible(t, "crack"), "catlak kilidi 3,5 paraya gorunur")
+	t.total_money_earned = 3.5
+	check(Economy.source_row_visible(t, "crack"), "catlak kilidi gorunur (7/2)")
+	check(not Economy.source_row_visible(t, "yok"), "bilinmeyen kaynak satiri yok")
+	t.unlocked_sources.append("dew")
+	check(Economy.source_row_visible(t, "dew"), "kilidi acik kaynak satiri her zaman")
+	check(not Economy.rate_row_visible(_state()), "oran satiri gizli")
+
+
+func test_save_new_fields() -> void:
+	var d: Dictionary = SaveCodec.to_dict(_rich_state())
+	check(Cfg.SAVE_VERSION == 2 and d["version"] == 2, "surum 2")
+	var json_back: Variant = JSON.parse_string(JSON.stringify(d))
+	var r: GameState = SaveCodec.from_dict(json_back)
+	check(r.tool_unlocked == 3 and r.canal_unlocked, "kilitler geri yuklenir")
+	check(r.tool_upgrades.get("cup", 0) == 2 and r.tool_upgrades.get("palm", 0) == 1, "alet seviyeleri geri yuklenir")
+	check(r.unlocked_sources.size() == 3 and r.unlocked_sources.has("spring"), "kaynak kilitleri geri yuklenir")
+	check(SaveCodec.to_dict(r) == d, "yeni alanlar gidis donus")
+
+
+func test_save_v1_migration() -> void:
+	var old: Dictionary = {
+		"version": 1, "money": 500.0, "total_money_earned": 900.0, "total_drops": 4000.0,
+		"tool_level": 2, "rate_level": 1, "carried": 3.0,
+		"sources": {"crack": 3, "dew": 1}, "loss_upgrades": ["rock_bed"], "last_seen_unix": 1700000000,
+	}
+	var r: GameState = SaveCodec.from_dict(old)
+	check(near(r.money, 500.0) and near(r.total_drops, 4000.0) and r.tool_level == 2, "v1 kayit yeni oyun olmaz")
+	check(r.tool_unlocked == 2 and Economy.is_tool_unlocked(r, 2) and not Economy.is_tool_unlocked(r, 3), "sahip olunan aletler acik sayilir")
+	check(Economy.source_unlocked(r, "crack") and Economy.source_unlocked(r, "dew") and not Economy.source_unlocked(r, "spring"), "sahip olunan kaynaklar acik sayilir")
+	check(not r.canal_unlocked and r.tool_upgrades.is_empty(), "yeni alanlar varsayilan")
+	check(r.loss_upgrades == ["rock_bed"] and r.rate_level == 1, "eski alanlar korunur")
+	check(Economy.buy_source(r, "crack"), "gocten sonra sahip olunan kaynak alinabilir")
+	var v0: GameState = SaveCodec.from_dict({"tool_level": 1, "money": 7.0})
+	check(v0.tool_unlocked == 1 and near(v0.money, 7.0), "surumsuz kayit da gocer")
+	check(SaveCodec.from_dict({"version": 3, "money": 5.0}).money == 0.0, "gelecek surum 3 yeni oyun")
+
+
+func test_save_new_corrupt() -> void:
+	var bad: Dictionary = {
+		"version": 2, "tool_level": 1, "tool_unlocked": 99, "tool_upgrades": {"cup": 9, "bucket": 2, "yok": 1, "palm": 1.5, 7: 1, "cup2": "x"},
+		"unlocked_sources": ["crack", "yok", 5, "crack"], "canal_unlocked": "evet",
+	}
+	var r: GameState = SaveCodec.from_dict(bad)
+	check(r.tool_unlocked == 1, "sinir disi tool_unlocked tool_level e iner")
+	check(r.tool_upgrades.is_empty(), "bozuk/sahip olunmayan/tavan ustu seviyeler atildi (%s)" % str(r.tool_upgrades))
+	check(r.unlocked_sources == ["crack"], "bilinmeyen id ve tekrar atildi")
+	check(not r.canal_unlocked, "canal_unlocked yalniz true kabul edilir")
+	var t: GameState = SaveCodec.from_dict({"tool_level": 1, "tool_upgrades": {"cup": 3, "palm": 5}, "tool_unlocked": 0, "carried": 1.0e9})
+	check(t.tool_upgrades.get("cup", 0) == 3 and t.tool_upgrades.get("palm", 0) == 5, "gecerli seviyeler korunur")
+	check(t.tool_unlocked == 1, "tool_unlocked en az tool_level")
+	check(near(t.carried, Economy.tool_capacity(t)) and near(t.carried, 24.0), "carried yukseltilmis kapasiteye kirpilir")
+	check(SaveCodec.from_dict({"tool_upgrades": "bozuk", "unlocked_sources": 5, "tool_unlocked": "x"}).tool_unlocked == 0, "yanlis turler cokertmez")
+	var neg: GameState = SaveCodec.from_dict({"tool_level": 1, "tool_upgrades": {"cup": -1}})
+	check(neg.tool_upgrades.is_empty(), "negatif seviye atilir")

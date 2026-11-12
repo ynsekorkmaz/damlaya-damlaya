@@ -14,7 +14,11 @@ static func to_dict(state: GameState) -> Dictionary:
 		"money": state.money,
 		"total_money_earned": state.total_money_earned,
 		"tool_level": state.tool_level,
+		"tool_unlocked": state.tool_unlocked,
+		"tool_upgrades": state.tool_upgrades.duplicate(),
 		"rate_level": state.rate_level,
+		"unlocked_sources": state.unlocked_sources.duplicate(),
+		"canal_unlocked": state.canal_unlocked,
 		"sources": state.sources.duplicate(),
 		"loss_upgrades": state.loss_upgrades.duplicate(),
 		"last_seen_unix": state.last_seen_unix,
@@ -35,8 +39,13 @@ static func from_dict(d: Variant) -> GameState:
 	state.total_money_earned = maxf(_number(data, "total_money_earned", 0.0), state.money)
 	state.tool_level = _level(data, "tool_level", Cfg.TOOLS.size())
 	state.rate_level = _level(data, "rate_level", Cfg.RATE_LEVELS.size())
+	# Surum 1 kayitlarinda yeni alanlar yok: sahip olunan aletler ve kaynaklar kilidi acik sayilir.
+	state.tool_unlocked = maxi(_level(data, "tool_unlocked", Cfg.TOOLS.size()), state.tool_level)
+	_load_tool_upgrades(state, data.get("tool_upgrades", {}))
 	state.carried = minf(_number(data, "carried", 0.0), Economy.tool_capacity(state))
 	state.last_seen_unix = int(_number(data, "last_seen_unix", 0.0))
+	var raw_canal: Variant = data.get("canal_unlocked", false)
+	state.canal_unlocked = typeof(raw_canal) == TYPE_BOOL and raw_canal
 
 	var raw_sources: Variant = data.get("sources", {})
 	if raw_sources is Dictionary:
@@ -47,12 +56,39 @@ static func from_dict(d: Variant) -> GameState:
 			if _is_number(count) and _is_valid(count) and float(count) >= 1.0 and float(count) <= Cfg.MAX_SOURCE_COUNT:
 				state.sources[key] = int(count)
 
+	var raw_unlocked: Variant = data.get("unlocked_sources", [])
+	if raw_unlocked is Array:
+		for id: Variant in raw_unlocked:
+			if id is String and not Economy.source_def(id).is_empty() and not state.unlocked_sources.has(id):
+				state.unlocked_sources.append(id)
+	for owned: String in state.sources:
+		if not state.unlocked_sources.has(owned):
+			state.unlocked_sources.append(owned)
+
 	var raw_loss: Variant = data.get("loss_upgrades", [])
 	if raw_loss is Array:
 		for id: Variant in raw_loss:
 			if id is String and not Economy.loss_def(id).is_empty() and not state.loss_upgrades.has(id):
 				state.loss_upgrades.append(id)
 	return state
+
+
+## Bilinmeyen id, sahip olunmayan alet, tam sayi olmayan ya da 1..MAX disi seviye atilir.
+static func _load_tool_upgrades(state: GameState, raw: Variant) -> void:
+	if not (raw is Dictionary):
+		return
+	for key: Variant in raw:
+		if not (key is String):
+			continue
+		var index: int = Economy.tool_index(key)
+		if index < 0 or index > state.tool_level:
+			continue
+		var level: Variant = raw[key]
+		if not _is_number(level) or not _is_valid(level):
+			continue
+		var f: float = float(level)
+		if f == floorf(f) and f >= 1.0 and f <= Cfg.TOOL_UPGRADE_MAX_LEVEL:
+			state.tool_upgrades[key] = int(f)
 
 
 static func _is_number(v: Variant) -> bool:

@@ -7,6 +7,7 @@ extends Node
 signal quality_changed(level: int)
 signal show_fps_changed(on: bool)
 
+const Palette = preload("res://scripts/core/palette.gd")
 const GraphicsConfig = preload("res://scripts/core/graphics_config.gd")
 const TerrainBuilder = preload("res://scripts/world/terrain_builder.gd")
 
@@ -16,6 +17,7 @@ const ARG_QUALITY: String = "--quality="
 const ARG_NO_SAVE: String = "--no-save"
 const COMPAT_METHOD: String = "gl_compatibility"
 
+var skin_gain: float = 1.0   # held_vessel.gd okur
 var level: int = GraphicsConfig.DEFAULT_LEVEL
 var show_fps: bool = false
 
@@ -28,6 +30,7 @@ var _saved_level: int = GraphicsConfig.DEFAULT_LEVEL   # dosyadaki seçim (--qua
 ## Komut satırı: --no-save dosyayı hiç okumaz/yazmaz; --quality=low|medium|high dosyaya yazmadan uygulanır.
 func _ready() -> void:
 	name = "GraphicsSettings"
+	add_to_group("graphics_settings")
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	_file_enabled = not args.has(ARG_NO_SAVE)
 	var forced: int = -1
@@ -75,6 +78,7 @@ func apply(new_level: int) -> void:
 	level = GraphicsConfig.clamp_level(new_level)
 	var p: Dictionary = GraphicsConfig.preset(level)
 	var compat: bool = is_compatibility()
+	skin_gain = float(p["skin_gain"])
 	_apply_viewport(p, compat)
 	_apply_sun(p)
 	_apply_environment(p, compat)
@@ -137,7 +141,12 @@ func _apply_environment(p: Dictionary, compat: bool) -> void:
 	else:
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_energy = float(p["ambient_energy"])
+	env.ambient_light_color = GraphicsConfig.AMBIENT_TINT if bool(p["ambient_sky"]) else Palette.AMBIENT
+	env.ambient_light_sky_contribution = float(p["ambient_sky_mix"])
 	env.fog_enabled = bool(p["fog"])
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_depth_begin = float(p["fog_begin"])
+	env.fog_depth_end = float(p["fog_end"])
 	env.fog_density = float(p["fog_density"])
 	env.fog_sky_affect = float(p["fog_sky_affect"])
 	env.glow_enabled = bool(p["glow"])

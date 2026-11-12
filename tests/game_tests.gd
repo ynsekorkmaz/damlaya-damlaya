@@ -66,18 +66,57 @@ func test_purchases() -> void:
 	var bought: Array[String] = []
 	g.connect("purchased", func(k: String, i: String) -> void: bought.append(k + ":" + i))
 	check(not g.buy_tool() and not g.buy_rate() and not g.buy_source("crack") and not g.buy_loss("rock_bed"), "para yokken hicbiri alinmaz")
+	check(not g.unlock_tool() and not g.upgrade_tool("palm") and not g.unlock_source("crack") and not g.unlock_canal(), "para yokken kilit ve yukseltme yok")
 	check(bought.is_empty() and g.state.tool_level == 0, "basarisiz alimda sinyal ve seviye degismez")
 	g.state.money = 10000.0
-	check(g.buy_tool() and g.state.tool_level == 1 and absf(g.state.money - (10000.0 - Cfg.TOOLS[1]["cost"])) < 1e-9, "alet alimi")
+	check(not g.buy_tool() and g.state.tool_level == 0 and g.state.money == 10000.0, "kilitsiz alet dukkanda alinmaz")
+	check(not g.buy_source("crack") and not g.upgrade_tool("cup") and not g.upgrade_tool("yok"), "kilitsiz kaynak ve sahipsiz alet")
+	check(g.unlock_tool() and g.state.tool_unlocked == 1 and absf(g.state.money - 9992.0) < 1e-9, "alet kilidi acma (8)")
+	check(g.buy_tool() and g.state.tool_level == 1 and absf(g.state.money - (9992.0 - Cfg.TOOLS[1]["cost"])) < 1e-9, "alet alimi")
 	var before: float = g.state.money
-	check(g.buy_rate() and g.state.rate_level == 1 and g.state.money < before, "oran alimi")
-	check(g.buy_source("crack") and g.state.sources["crack"] == 1, "kaynak alimi")
+	check(g.upgrade_tool("cup") and g.state.tool_upgrades["cup"] == 1 and absf(g.state.money - (before - 10.0)) < 1e-9, "alet kapasite yukseltme")
+	check(g.buy_rate() and g.state.rate_level == 1, "oran alimi")
+	check(g.unlock_source("crack") and g.buy_source("crack") and g.state.sources["crack"] == 1, "kaynak kilidi ve alimi")
 	check(g.buy_loss("rock_bed") and g.state.loss_upgrades.has("rock_bed"), "kayip alimi")
 	check(not g.buy_loss("rock_bed"), "alinmis kayip tekrar alinmaz")
-	check(not g.buy_source("yok"), "bilinmeyen kaynak alinmaz")
-	check(bought == ["tool:cup", "rate:rate", "source:crack", "loss:rock_bed"], "satin alma sinyalleri (%s)" % str(bought))
+	check(not g.buy_source("yok") and not g.unlock_source("yok"), "bilinmeyen kaynak alinmaz")
+	check(bought == ["tool_unlock:cup", "tool:cup", "tool_upgrade:cup", "rate:rate", "source_unlock:crack", "source:crack", "loss:rock_bed"], "satin alma sinyalleri (%s)" % str(bought))
 	g.state.money = 0.5
 	check(not g.buy_source("crack") and g.state.sources["crack"] == 1 and g.state.money == 0.5, "para yetmezse false, durum ayni")
+	g.free()
+	test_canal_wrappers()
+
+
+func test_canal_wrappers() -> void:
+	var g: Node = GameScript.new()
+	g.setup(false)
+	var bought: Array[String] = []
+	g.connect("purchased", func(k: String, i: String) -> void: bought.append(k + ":" + i))
+	g.state.money = 1.0e7
+	check(not g.open_spring("A") and not g.upgrade_canal_width() and not g.upgrade_canal_lining(), "kanal kilitliyken hicbiri alinmaz")
+	check(g.state.money == 1.0e7 and bought.is_empty(), "kilitliyken para ayni")
+	check(g.unlock_canal() and g.state.canal_unlocked and absf(g.state.money - (1.0e7 - Cfg.CANAL_UNLOCK_COST)) < 1e-6, "kanal kilidi parayi duser")
+	check(not g.unlock_canal(), "kanal kilidi bir kez")
+	var money: float = g.state.money
+	check(g.open_spring("A") and g.canal.is_spring_open("A"), "pinar acilir")
+	check(absf(g.state.money - (money - 4000.0)) < 1e-6, "pinar parayi duser")
+	check(not g.open_spring("A") and absf(g.state.money - (money - 4000.0)) < 1e-6, "acik pinar tekrar acilmaz, para ayni")
+	check(not g.open_spring("Z"), "bilinmeyen pinar")
+	money = g.state.money
+	check(g.upgrade_canal_width() and g.canal.width_level == 1 and absf(g.state.money - (money - 3000.0)) < 1e-6, "genis kanal")
+	money = g.state.money
+	check(g.upgrade_canal_lining() and g.canal.lining_level == 1 and absf(g.state.money - (money - 5000.0)) < 1e-6, "tas kaplama")
+	check(bought == ["canal_unlock:canal", "canal_spring:A", "canal_width:width", "canal_lining:lining"], "kanal sinyalleri (%s)" % str(bought))
+	g.state.money = 100.0
+	check(not g.open_spring("B") and not g.canal.is_spring_open("B") and g.state.money == 100.0, "para yetmezse pinar acilmaz")
+	check(not g.upgrade_canal_width() and g.canal.width_level == 1, "para yetmezse genis kanal olmaz")
+	g.state.money = 1.0e12
+	for i: int in 10:
+		g.upgrade_canal_width()
+		g.upgrade_canal_lining()
+	check(g.canal.width_level == 4 and g.canal.lining_level == 3, "seviye tavani")
+	var after: float = g.state.money
+	check(not g.upgrade_canal_width() and g.state.money == after, "tavanda para dusmez")
 	g.free()
 
 

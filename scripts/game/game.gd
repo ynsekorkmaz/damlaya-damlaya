@@ -88,12 +88,35 @@ func income_per_minute() -> float:
 
 # ---------- Satın alma ----------
 
+## Dükkân: yalnızca kilidi açılmış sıradaki alet.
 func buy_tool() -> bool:
-	return _finish_purchase(Economy.buy_tool(state), "tool", Cfg.TOOLS[state.tool_level]["id"])
+	if not Economy.next_tool_unlocked(state):
+		return false
+	var id: String = Cfg.TOOLS[state.tool_level + 1]["id"]
+	return _finish_purchase(Economy.buy_tool(state), "tool", id)
+
+
+## Geliştirmeler: sıradaki kilitli aletin kilidini açar.
+func unlock_tool() -> bool:
+	if Economy.cost_tool_unlock(state) < 0.0:
+		return false
+	var id: String = Cfg.TOOLS[state.tool_unlocked + 1]["id"]
+	return _finish_purchase(Economy.unlock_tool(state), "tool_unlock", id)
+
+
+func upgrade_tool(id: String) -> bool:
+	var index: int = Economy.tool_index(id)
+	if index < 0:
+		return false
+	return _finish_purchase(Economy.upgrade_tool(state, index), "tool_upgrade", id)
 
 
 func buy_rate() -> bool:
 	return _finish_purchase(Economy.buy_rate(state), "rate", "rate")
+
+
+func unlock_source(id: String) -> bool:
+	return _finish_purchase(Economy.unlock_source(state, id), "source_unlock", id)
 
 
 func buy_source(id: String) -> bool:
@@ -102,6 +125,38 @@ func buy_source(id: String) -> bool:
 
 func buy_loss(id: String) -> bool:
 	return _finish_purchase(Economy.buy_loss(state, id), "loss", id)
+
+
+func unlock_canal() -> bool:
+	return _finish_purchase(Economy.unlock_canal(state), "canal_unlock", "canal")
+
+
+## Kanal öğeleri: kanal sistemi açık olmalı, ücret ekonomi parasından düşer, ızgara yalnızca maliyeti verir.
+func open_spring(id: String) -> bool:
+	if not state.canal_unlocked or canal.is_spring_open(id):
+		return false
+	var cost: int = canal.spring_cost(id)
+	if cost < 0 or not Economy.spend(state, float(cost)):
+		return false
+	return _finish_purchase(canal.open_spring(id), "canal_spring", id)
+
+
+func upgrade_canal_width() -> bool:
+	if not state.canal_unlocked:
+		return false
+	var cost: int = canal.width_cost()
+	if cost < 0 or not Economy.spend(state, float(cost)):
+		return false
+	return _finish_purchase(canal.upgrade_width(), "canal_width", "width")
+
+
+func upgrade_canal_lining() -> bool:
+	if not state.canal_unlocked:
+		return false
+	var cost: int = canal.lining_cost()
+	if cost < 0 or not Economy.spend(state, float(cost)):
+		return false
+	return _finish_purchase(canal.upgrade_lining(), "canal_lining", "lining")
 
 
 func _finish_purchase(ok: bool, kind: String, id: String) -> bool:

@@ -3,6 +3,7 @@ extends Node3D
 ## Dis arayuz: script yolu, `game` alani (kurulumdan once atanir), kameranin cocugu olarak eklenir.
 
 const Cfg = preload("res://scripts/player/arms_config.gd")
+const GraphicsConfig = preload("res://scripts/core/graphics_config.gd")
 const Economy = preload("res://scripts/core/economy.gd")
 const EconomyCfg = preload("res://scripts/core/economy_config.gd")
 const ToolModels = preload("res://scripts/player/tool_models.gd")
@@ -61,6 +62,7 @@ func _ready() -> void:
 		else:
 			mi.material_override = _skin_mat
 	_build_tools()
+	_bind_quality()
 	# Eller ve aletler gölge alır ama atmaz (kameraya bu kadar yakın nesnenin yere gölgesi tuhaf durur)
 	for node: Node in find_children("*", "GeometryInstance3D", true, false):
 		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -69,6 +71,20 @@ func _ready() -> void:
 		game.connect("poured", _on_poured)
 	_last_pos = global_position
 	_apply_pose(0.0)
+
+
+## Kalite ayarına bağlanır: Orta/Yüksek'te tonemap teni solgunlaştırır, çarpan bunu dengeler.
+func _bind_quality() -> void:
+	var settings: Node = get_tree().get_first_node_in_group("graphics_settings")
+	if settings == null:
+		return
+	settings.connect("quality_changed", _on_quality_changed.bind(settings))
+	_on_quality_changed(0, settings)
+
+
+func _on_quality_changed(_level: int, settings: Node) -> void:
+	var gain: float = float(settings.get("skin_gain"))
+	_skin_mat.albedo_color = Color(gain, gain * GraphicsConfig.SKIN_WARMTH.x, gain * GraphicsConfig.SKIN_WARMTH.y)
 
 
 ## Seviye basina alet modeli (glb ya da yer tutucu) kurulur; hepsi gizli baslar.

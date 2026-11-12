@@ -40,6 +40,8 @@ const PROMPT_ANCHOR_Y: float = 0.60 ## Nisangahin biraz alti, tus ipucunun ustu
 const BANNER_TOP: float = 70.0
 const BANNER_HOLD_SECONDS: float = 3.5
 const BANNER_FADE_SECONDS: float = 1.5
+const UPGRADES_HINT: String = "Tab: geliştirmeleri aç"
+const UPGRADES_HINT_MONEY: float = 5.0 ## Para ilk kez bunu geçince bir kez gösterilir
 const POPUP_POOL_SIZE: int = 4
 const POPUP_ANCHOR_Y: float = 0.40
 const POPUP_HEIGHT: float = 48.0
@@ -67,6 +69,8 @@ var _popups: Array[Label] = []
 var _popup_tweens: Array[Tween] = []
 var _popup_next: int = 0
 var _water_full: bool = false
+var _prev_money: float = 0.0
+var _hint_shown: bool = false
 
 
 func _ready() -> void:
@@ -86,6 +90,10 @@ func _ready() -> void:
 			game.connect("stage_changed", _on_stage_changed)
 		if game.has_signal("prompt_changed"):
 			game.connect("prompt_changed", _on_prompt_changed)
+	var start_state: GameState = _get_state()
+	if start_state != null:
+		_prev_money = start_state.money
+		_hint_shown = start_state.money > UPGRADES_HINT_MONEY
 	_refresh()
 	_apply_prompt(_read_prompt())
 
@@ -283,6 +291,10 @@ func _refresh() -> void:
 		_water_bar.value = 0.0
 		return
 	_set_text(_money_label, NumberFormat.format_money(state.money))
+	if not _hint_shown and state.money > UPGRADES_HINT_MONEY and _prev_money <= UPGRADES_HINT_MONEY:
+		_hint_shown = true
+		_show_banner("", UPGRADES_HINT)
+	_prev_money = state.money
 	_set_text(_drops_label, "Damla: " + NumberFormat.format_int(state.total_drops))
 	var income: float = 0.0
 	if game.has_method("income_per_minute"):
@@ -360,12 +372,17 @@ func _on_stage_changed(index: int) -> void:
 	if index < 0 or index >= Cfg.STAGES.size():
 		return
 	var def: Dictionary = Cfg.STAGES[index]
-	_banner_title.text = String(def["name_tr"])
-	_banner_text.text = String(def["text_tr"])
+	_show_banner(String(def["name_tr"]), String(def["text_tr"]))
+	_refresh()
+
+
+func _show_banner(title: String, text: String) -> void:
+	_banner_title.text = title
+	_banner_title.visible = not title.is_empty()
+	_banner_text.text = text
 	if _banner_tween != null and _banner_tween.is_valid():
 		_banner_tween.kill()
 	_banner_box.modulate.a = 1.0
 	_banner_tween = create_tween()
 	_banner_tween.tween_interval(BANNER_HOLD_SECONDS)
 	_banner_tween.tween_property(_banner_box, "modulate:a", 0.0, BANNER_FADE_SECONDS)
-	_refresh()

@@ -1,6 +1,7 @@
 extends Node3D
 ## Sahneyi kodla kurar. `--screenshot=<yol>` verilirse ölçüm yapıp çıkar.
-## Ek argümanlar: --quality=low|medium|high (ayar dosyasına yazmadan), --no-save, --open-menu, --open-shop.
+## Ek argümanlar: --quality=low|medium|high (ayar dosyasına yazmadan), --no-save, --open-menu, --open-shop, --open-upgrades[=aletler|su|kaynaklar|kayip|kanal],
+## --debug-drops/money/tool/carried.
 
 const Config = preload("res://scripts/core/config.gd")
 const TerrainShape = preload("res://scripts/core/terrain_shape.gd")
@@ -73,6 +74,12 @@ func _ready() -> void:
 	shop_panel.set("player", player)
 	add_child(shop_panel)
 
+	var upgrades_panel := CanvasLayer.new()
+	upgrades_panel.set_script(preload("res://scripts/ui/upgrades_panel.gd"))
+	upgrades_panel.set("game", game)
+	upgrades_panel.set("player", player)
+	add_child(upgrades_panel)
+
 	var debug_hud := CanvasLayer.new()
 	debug_hud.set_script(preload("res://scripts/ui/debug_hud.gd"))
 	debug_hud.set("settings", settings)
@@ -85,6 +92,14 @@ func _ready() -> void:
 	pause_menu.set("settings", settings)
 	add_child(pause_menu)
 
+	var manager := Node.new()
+	manager.set_script(preload("res://scripts/ui/panel_manager.gd"))
+	manager.set("game", game)
+	manager.set("shop", shop_panel)
+	manager.set("upgrades", upgrades_panel)
+	manager.set("pause", pause_menu)
+	add_child(manager)
+
 	var st: GameState = game.get("state")
 	var cam_at := Vector2.INF
 	var look_at := Vector2.INF
@@ -92,6 +107,8 @@ func _ready() -> void:
 	var debug_carried: float = -1.0
 	var open_shop: bool = false
 	var open_menu: bool = false
+	var open_upgrades: bool = false
+	var upgrades_section: String = ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--camera-at="):
 			cam_at = _parse_xz(arg.substr("--camera-at=".length()))
@@ -108,6 +125,10 @@ func _ready() -> void:
 			st.total_money_earned = maxf(st.total_money_earned, st.money)
 		elif arg.begins_with("--debug-tool="):
 			st.tool_level = clampi(arg.substr("--debug-tool=".length()).to_int(), 0, Cfg.TOOLS.size() - 1)
+			st.tool_unlocked = maxi(st.tool_unlocked, st.tool_level)
+		elif arg == "--open-upgrades" or arg.begins_with("--open-upgrades="):
+			open_upgrades = true
+			upgrades_section = arg.substr("--open-upgrades=".length()) if arg.contains("=") else ""
 		elif arg == "--open-shop":
 			open_shop = true
 		elif arg == "--open-menu":
@@ -126,6 +147,8 @@ func _ready() -> void:
 
 	if open_shop:
 		shop_panel.call("open")
+	if open_upgrades:
+		upgrades_panel.call("open_section", upgrades_section)
 	if open_menu:
 		pause_menu.call("open")
 

@@ -3,7 +3,7 @@ extends CanvasLayer
 
 const CROSSHAIR_SIZE: float = 4.0
 const CROSSHAIR_COLOR: Color = Color(1.0, 1.0, 1.0, 0.5)
-const HINT_TEXT: String = "Tıkla: fareyi yakala   WASD: yürü   Shift: koş   Boşluk: zıpla   Esc: menü   F3: bilgi"
+const HINT_TEXT: String = "Tıkla: fareyi yakala   WASD: yürü   Shift: koş   Boşluk: zıpla   Tab: geliştirmeler   Esc: menü   F3: bilgi"
 const HINT_VISIBLE_SECONDS: float = 8.0
 const HINT_FADE_SECONDS: float = 2.0
 const HINT_BOTTOM_OFFSET: float = 40.0

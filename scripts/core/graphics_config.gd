@@ -16,7 +16,13 @@ const LEVEL_ARGS: Array[String] = ["low", "medium", "high"]
 const SETTINGS_PATH: String = "user://settings.json"
 const SETTINGS_TMP_PATH: String = "user://settings.json.tmp"
 
+# Orta/Yüksek: gökyüzü ortamına karışan sıcak renk
+const AMBIENT_TINT := Color(0.80, 0.74, 0.64)
+
 # Derinlik sisi rengi (uzak tepeleri gökyüzüne yaklaştırır)
+# Ten rengi çarpanı: kırmızı kanal tam, yeşil ve mavi gain ile daha çok düşer
+const SKIN_WARMTH := Vector2(0.94, 0.88)
+
 const FOG_COLOR := Color(0.66, 0.76, 0.88)
 
 ## Anahtar -> [en az, en çok]; test bunu kullanır. bool anahtarlar 0/1 sayılır.
@@ -41,9 +47,12 @@ const BOUNDS: Dictionary = {
 	"tonemap_white": [1.0, 16.0],
 	"ambient_sky": [0, 1],              # ortam ışığı gökyüzünden
 	"ambient_energy": [0.0, 3.0],
+	"ambient_sky_mix": [0.0, 1.0],      # gökyüzü payı; kalan, Palette.AMBIENT renginden (sıcak, gökyüzünün beyaz bulutları teni/kayayı solgunlaştırmasın)
+	"fog_begin": [0.0, 500.0],          # m, sis başlangıcı (derinlik sisi)
+	"fog_end": [10.0, 1000.0],
 	"sun_energy": [0.0, 4.0],
 	"fog": [0, 1],
-	"fog_density": [0.0, 0.05],
+	"fog_density": [0.0, 1.0],          # derinlik sisinin en çok kapladığı oran
 	"fog_sky_affect": [0.0, 1.0],
 	"ssao": [0, 1],                     # yalnızca Forward+ / Mobile değil
 	"ssil": [0, 1],
@@ -54,6 +63,7 @@ const BOUNDS: Dictionary = {
 	"volumetric_fog": [0, 1],           # yalnızca Forward+
 	"terrain_normal": [0.0, 2.0],       # arazi normal haritası gücü, 0 = kapalı (doku yüklenmez)
 	"terrain_tex_k": [1, 2],            # arazi doku çözünürlüğü: 1 = 1k, 2 = 2k
+	"skin_gain": [0.3, 1.5],          # eller ve aletlerin parlaklık çarpanı (tonemap teni solgunlaştırmasın)
 	"water": [0, 2],                    # 0 sade, 1 derinlik geçişi + fresnel + güneş, 2 ek dalga ayrıntısı
 	"target_fps": [30, 144],
 }
@@ -66,13 +76,13 @@ const PRESETS: Array[Dictionary] = [
 		"shadow_atlas": 1024, "shadow_filter": 1,
 		"msaa": 0, "fxaa": false, "taa": false, "render_scale": 1.0,
 		"tonemap": 0, "tonemap_exposure": 1.0, "tonemap_white": 6.0,
-		"ambient_sky": false, "ambient_energy": Config.AMBIENT_ENERGY, "sun_energy": Config.SUN_ENERGY,
-		"fog": false, "fog_density": 0.0, "fog_sky_affect": 0.0,
+		"ambient_sky": false, "ambient_energy": Config.AMBIENT_ENERGY, "ambient_sky_mix": 0.0, "sun_energy": Config.SUN_ENERGY,
+		"fog": false, "fog_begin": 60.0, "fog_end": 250.0, "fog_density": 0.0, "fog_sky_affect": 0.0,
 		"ssao": false, "ssil": false,
 		"glow": false, "glow_intensity": 0.0, "glow_bloom": 0.0, "glow_threshold": 1.0,
 		"volumetric_fog": false,
 		"terrain_normal": 0.0, "terrain_tex_k": 1,
-		"water": 0, "target_fps": 60,
+		"skin_gain": 1.0, "water": 0, "target_fps": 60,
 	},
 	{ # Orta (varsayılan)
 		"shadows": true, "shadow_splits": 2, "shadow_distance": 70.0,
@@ -81,13 +91,13 @@ const PRESETS: Array[Dictionary] = [
 		"shadow_atlas": 2048, "shadow_filter": 2,
 		"msaa": 2, "fxaa": false, "taa": false, "render_scale": 1.0,
 		"tonemap": 2, "tonemap_exposure": 0.9, "tonemap_white": 6.0,
-		"ambient_sky": true, "ambient_energy": 0.7, "sun_energy": 1.0,
-		"fog": true, "fog_density": 0.0016, "fog_sky_affect": 0.0,
+		"ambient_sky": true, "ambient_energy": 0.55, "ambient_sky_mix": 0.4, "sun_energy": 1.5,
+		"fog": true, "fog_begin": 70.0, "fog_end": 260.0, "fog_density": 0.55, "fog_sky_affect": 0.0,
 		"ssao": false, "ssil": false,
 		"glow": false, "glow_intensity": 0.0, "glow_bloom": 0.0, "glow_threshold": 1.0,
 		"volumetric_fog": false,
 		"terrain_normal": 1.0, "terrain_tex_k": 1,
-		"water": 1, "target_fps": 50,
+		"skin_gain": 0.8, "water": 1, "target_fps": 50,
 	},
 	{ # Yüksek
 		"shadows": true, "shadow_splits": 4, "shadow_distance": 140.0,
@@ -96,13 +106,13 @@ const PRESETS: Array[Dictionary] = [
 		"shadow_atlas": 4096, "shadow_filter": 4,
 		"msaa": 4, "fxaa": false, "taa": false, "render_scale": 1.0,
 		"tonemap": 2, "tonemap_exposure": 0.9, "tonemap_white": 6.0,
-		"ambient_sky": true, "ambient_energy": 0.7, "sun_energy": 1.0,
-		"fog": true, "fog_density": 0.0016, "fog_sky_affect": 0.0,
+		"ambient_sky": true, "ambient_energy": 0.55, "ambient_sky_mix": 0.4, "sun_energy": 1.5,
+		"fog": true, "fog_begin": 70.0, "fog_end": 260.0, "fog_density": 0.55, "fog_sky_affect": 0.0,
 		"ssao": true, "ssil": false,
 		"glow": true, "glow_intensity": 0.5, "glow_bloom": 0.04, "glow_threshold": 1.2,
 		"volumetric_fog": false,
 		"terrain_normal": 1.0, "terrain_tex_k": 2,
-		"water": 2, "target_fps": 30,
+		"skin_gain": 0.8, "water": 2, "target_fps": 30,
 	},
 ]
 

@@ -1,0 +1,73 @@
+extends Node
+## Etkileşim: kaynakta su doldurma, çukurda dökme, ipucu metni. Raycast yok, basit vektör hesabı.
+
+const Config = preload("res://scripts/core/config.gd")
+const Economy = preload("res://scripts/core/economy.gd")
+const SpringBuilder = preload("res://scripts/world/spring_builder.gd")
+
+const PROMPT_FILL: String = "Sol tıkı basılı tut: su doldur"
+const PROMPT_FULL: String = "Elin dolu. Çukura götür."
+const PROMPT_POUR: String = "Sol tık: suyu dök"
+const PROMPT_GUIDE: String = "Kayadaki kaynaktan su al."
+
+var game: Node
+var player: CharacterBody3D
+
+var _spring_center: Vector3
+var _was_captured: bool = false
+
+
+func _ready() -> void:
+	name = "Interaction"
+	_spring_center = SpringBuilder.origin() + Vector3(0.0, Config.FILL_TARGET_HEIGHT, 0.0)
+
+
+func _process(delta: float) -> void:
+	if game == null or player == null:
+		return
+	var captured: bool = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	# Fareyi yakalayan ilk tıklama etkileşim sayılmaz.
+	var active: bool = captured and _was_captured
+	_was_captured = captured
+	if not captured:
+		game.call("set_prompt", "")
+		return
+
+	var state: Object = game.get("state")
+	var carried: float = state.carried
+	var capacity: float = Economy.tool_capacity(state)
+	var prompt: String = ""
+
+	if _near_spring() and _looking_at_spring():
+		if carried < capacity:
+			prompt = PROMPT_FILL
+			if active and Input.is_action_pressed("interact"):
+				game.call("try_fill", delta)
+		else:
+			prompt = PROMPT_FULL
+	elif carried > 0.0 and _in_pour_zone():
+		prompt = PROMPT_POUR
+		if active and Input.is_action_just_pressed("interact"):
+			game.call("try_pour")
+	elif carried <= 0.0 and state.total_drops < Config.GUIDE_DROPS_LIMIT:
+		prompt = PROMPT_GUIDE
+	elif carried > 0.0 and state.total_drops < Config.GUIDE_DROPS_LIMIT:
+		prompt = PROMPT_FULL
+	game.call("set_prompt", prompt)
+
+
+func _near_spring() -> bool:
+	var flat := Vector2(player.global_position.x - _spring_center.x, player.global_position.z - _spring_center.z)
+	return flat.length() - Config.SPRING_RADIUS < Config.FILL_REACH
+
+
+func _looking_at_spring() -> bool:
+	var camera: Camera3D = player.call("get_camera")
+	var to_target: Vector3 = (_spring_center - camera.global_position).normalized()
+	var forward: Vector3 = -camera.global_transform.basis.z
+	return forward.dot(to_target) >= Config.FILL_LOOK_COS
+
+
+func _in_pour_zone() -> bool:
+	var flat := Vector2(player.global_position.x, player.global_position.z)
+	return flat.length() <= Config.POUR_ZONE_RADIUS

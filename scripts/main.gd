@@ -7,6 +7,9 @@ const InputSetup = preload("res://scripts/core/input_setup.gd")
 const SkyBuilder = preload("res://scripts/world/sky_builder.gd")
 const TerrainBuilder = preload("res://scripts/world/terrain_builder.gd")
 const RocksBuilder = preload("res://scripts/world/rocks_builder.gd")
+const SpringBuilder = preload("res://scripts/world/spring_builder.gd")
+const Economy = preload("res://scripts/core/economy.gd")
+const GameState = preload("res://scripts/core/game_state.gd")
 
 
 func _ready() -> void:
@@ -14,30 +17,69 @@ func _ready() -> void:
 	add_child(SkyBuilder.build())
 	add_child(TerrainBuilder.build())
 	add_child(RocksBuilder.build())
+	add_child(SpringBuilder.build())
+
+	var lake := Node3D.new()
+	lake.set_script(preload("res://scripts/world/lake_view.gd"))
+	add_child(lake)
+
+	var game := Node.new()
+	game.name = "Game"
+	game.set_script(preload("res://scripts/game/game.gd"))
+	add_child(game)
 
 	var spawn: Vector3 = Config.PLAYER_SPAWN
 	spawn.y = TerrainShape.height(spawn.x, spawn.z) + Config.SPAWN_LIFT
 	var player := CharacterBody3D.new()
 	player.set_script(preload("res://scripts/player/player.gd"))
 	player.position = spawn
-	player.rotation.y = atan2(spawn.x, spawn.z)  # çukura (merkeze) bak
+	player.rotation.y = atan2(spawn.x - Config.SPAWN_LOOK_AT.x, spawn.z - Config.SPAWN_LOOK_AT.y)
 	add_child(player)
 
-	var hud := CanvasLayer.new()
-	hud.set_script(preload("res://scripts/ui/debug_hud.gd"))
-	add_child(hud)
+	lake.call("bind", game, player)
 
+	var vessel := Node3D.new()
+	vessel.set_script(preload("res://scripts/player/held_vessel.gd"))
+	vessel.set("game", game)
+	(player.call("get_camera") as Camera3D).add_child(vessel)
+
+	var interaction := Node.new()
+	interaction.set_script(preload("res://scripts/player/interaction.gd"))
+	interaction.set("game", game)
+	interaction.set("player", player)
+	add_child(interaction)
+
+	if ResourceLoader.exists("res://scripts/ui/hud.gd"):
+		var hud := CanvasLayer.new()
+		hud.set_script(load("res://scripts/ui/hud.gd"))
+		hud.set("game", game)
+		add_child(hud)
+
+	var debug_hud := CanvasLayer.new()
+	debug_hud.set_script(preload("res://scripts/ui/debug_hud.gd"))
+	add_child(debug_hud)
+
+	var st: GameState = game.get("state")
 	var cam_at := Vector2.INF
 	var look_at := Vector2.INF
+	var pitch_deg: float = 0.0
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--camera-at="):
 			cam_at = _parse_xz(arg.substr("--camera-at=".length()))
 		elif arg.begins_with("--look-at="):
 			look_at = _parse_xz(arg.substr("--look-at=".length()))
+		elif arg.begins_with("--pitch="):
+			pitch_deg = arg.substr("--pitch=".length()).to_float()
+		elif arg.begins_with("--debug-drops="):
+			st.total_drops = arg.substr("--debug-drops=".length()).to_float()
+		elif arg.begins_with("--debug-carried="):
+			st.carried = minf(arg.substr("--debug-carried=".length()).to_float(), Economy.tool_capacity(st))
 	if cam_at != Vector2.INF:
 		player.position = Vector3(cam_at.x, TerrainShape.height(cam_at.x, cam_at.y) + Config.SPAWN_LIFT, cam_at.y)
 		if look_at != Vector2.INF:
 			player.rotation.y = atan2(cam_at.x - look_at.x, cam_at.y - look_at.y)
+	if pitch_deg != 0.0:
+		(player.call("get_camera") as Camera3D).rotation.x = deg_to_rad(pitch_deg)
 
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--screenshot="):
@@ -52,8 +94,11 @@ func _parse_xz(text: String) -> Vector2:
 
 
 func _capture_and_quit(path: String) -> void:
+	var pour_frame: int = Config.SCREENSHOT_WAIT_FRAMES - Config.SCREENSHOT_POUR_FRAMES_BEFORE
 	for i in range(Config.SCREENSHOT_WAIT_FRAMES):
 		await get_tree().process_frame
+		if i == pour_frame and OS.get_cmdline_user_args().has("--debug-pour"):
+			get_node("Game").call("try_pour")
 	await RenderingServer.frame_post_draw
 	print("FPS: ", Performance.get_monitor(Performance.TIME_FPS))
 	print("Ucgen: ", Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))

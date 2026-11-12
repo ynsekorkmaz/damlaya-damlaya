@@ -186,10 +186,10 @@ static func build_rock_mesh(variant: int = 0) -> ArrayMesh:
 			var d: int = c + 1
 			# Godot ön yüzü saat yönü, dışa bakar
 			if r > 0:
-				for k in [a, b, c]:
+				for k in [a, c, b]:
 					st.add_index(k)
 			if r < rings - 1:
-				for k in [b, d, c]:
+				for k in [b, c, d]:
 					st.add_index(k)
 	return st.commit()
 

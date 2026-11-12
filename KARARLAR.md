@@ -12,3 +12,13 @@
 - Girdi eylemleri project.godot'a yazılmaz, kodla kaydedilir (InputSetup).
 - Dışarıdan model, doku, eklenti indirilmez.
 - Kayalar 3 biçimli (3 MultiMesh), sinüsle bozulmuş yumuşak gölgeli hacimler; 1 m ve üstü kayalara küre çarpışması, küçük taşlar çarpışmasız; tepe yamacı çimen, kuru ot, sıcak toprak geçişi.
+- Cukur yaricapi 16 m, derinlik 3,5 m, yumusak canak (en dik egim yaklasik 15 derece); dalga sonumu cukur icinde 14 m'ye kadar sürer, canak pürüzsüz.
+- Dogus noktasi (5, 36) ve bakis hedefi SPAWN_LOOK_AT: cukur ve su kaynagi birlikte gorunur. Kaynak (-9, 26), cukur kenarindan ~11,5 m.
+- game.gd tek durum sahibi (Node); main.gd baglar. Kayit user://save_v1.json, her 3 sn ve pencere kapanirken; --no-save ile kayit yok. Yazma gecici dosya + yeniden adlandirma.
+- Gol tek disk mesh (840 ucgen) ve dalga vertex shader'i; seviye Economy.lake_fill'den, yaricap LakeShape'ten (merkezden isin atilan kiyi tablosu), her karede hedefe lerp.
+- Disk, kiyi yaricapindan LAKE_RADIUS_MARGIN kadar buyuk; fazlasi arazinin altinda kalir (derinlik testi), kiyi cizgisi arazi kesisimiyle dogal olusur.
+- Su seffafligi yalnizca vertex color ile (kenarda daha seffaf); derinlik dokusu okunmaz.
+- Halka dalga havuzu 4 nesne, her dokmede siradakini yeniden kullanir.
+- Etkilesim raycast'siz: kaya yuzeyine 3 m ve bakis kosinusu, dokme icin merkezden 19 m. Fareyi yakalayan ilk tiklama etkilesim sayilmaz.
+- Elde su: kameraya bagli profil dondurmeli kap, su diski carried/kapasite ile yukselir.
+- Ek ekran goruntusu argumanlari: --debug-drops, --debug-carried, --debug-pour, --pitch.

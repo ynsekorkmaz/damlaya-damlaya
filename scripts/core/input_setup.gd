@@ -12,6 +12,12 @@ const ACTION_KEYS: Dictionary = {
 }
 
 
+## Fare tuşu eylemleri.
+const ACTION_MOUSE: Dictionary = {
+	"interact": [MOUSE_BUTTON_LEFT],
+}
+
+
 static func register() -> void:
 	for action: String in ACTION_KEYS:
 		if InputMap.has_action(action):
@@ -20,4 +26,12 @@ static func register() -> void:
 		for keycode: int in ACTION_KEYS[action]:
 			var event := InputEventKey.new()
 			event.physical_keycode = keycode as Key
+			InputMap.action_add_event(action, event)
+	for action: String in ACTION_MOUSE:
+		if InputMap.has_action(action):
+			continue
+		InputMap.add_action(action)
+		for button: int in ACTION_MOUSE[action]:
+			var event := InputEventMouseButton.new()
+			event.button_index = button as MouseButton
 			InputMap.action_add_event(action, event)

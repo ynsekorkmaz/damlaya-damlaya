@@ -1,11 +1,11 @@
 extends RefCounted
 ## Birinci sahis kollar ve avuc: konum/olcek sayilari (metre, kamera uzayi) ve su rengi.
-## Eller Blender'da uretilir (tools/blender/make_hands.py -> assets/models/hands.glb).
+## Eller Blender de MPFB (CC0 insan agi) ile uretilir (tools/blender/make_hands_mpfb.py -> assets/models/hands.glb).
 ## Model orijini iki bilegin ortasi; canagin agzi +Y, parmak uclari -Z (kamerenin baktigi yon).
 
 const MODEL_PATH: String = "res://assets/models/hands.glb"
 const WATER := Color(0.55, 0.78, 0.92, 0.55)
-const ARM_SCALE: float = 1.3
+const ARM_SCALE: float = 1.2
 
 # ---- Su: glb'deki "Water" (alt yari elipsoid, ustu duz, orijin altta, boy 0.026 m) ----
 const WATER_MESH_HEIGHT: float = 0.026
@@ -18,7 +18,7 @@ const WATER_WOBBLE: float = 0.02
 const WATER_WOBBLE_HZ: float = 2.6
 
 # ---- Duruslar (model orijini = bilekler; derece: pitch, yaw, roll) ----
-const CUP_POS := Vector3(0.0, -0.235, -0.33)
+const CUP_POS := Vector3(0.0, -0.27, -0.34)
 const CUP_ROT_DEG := Vector3(22.0, 0.0, 0.0)
 const IDLE_POS := Vector3(0.0, -0.62, -0.3)
 const IDLE_ROT_DEG := Vector3(14.0, 0.0, 0.0)

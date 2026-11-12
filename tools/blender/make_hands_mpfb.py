@@ -27,17 +27,20 @@ PNG_DIR = arg("--png-dir")
 MAX_TRIS_TOTAL = 7200          # iki el + onkol (su disinda)
 
 # ---- durus ayarlari (derece / metre) ----
-WRIST_X = 0.036                # her bilek orta cizgiden
+WRIST_X = 0.05
 FORWARD = 0.30                 # omuzdan bilege ileri
 DROP = 0.12                    # omuzdan bilege asagi
-TOP_LIFT = 0.014               # ustteki elin ek yuksekligi
-BOWL_ROLL = 22.0               # avuc ici ice yatis (cukur)
+TOP_LIFT = 0.0
+BOWL_ROLL = float(arg('--roll', 22.0))
 HAND_PITCH = 8.0               # el bilekte yukari
-YAW_TOP = 26.0                 # ustteki el parmaklari ice cok
-YAW_BOT = 4.0
+YAW_TOP = float(arg('--yaw', 7.0))
+YAW_BOT = YAW_TOP
 CUT_FRAC = 0.30                # dirsekten kesme (onkol boyunun orani)
-CURL = {2: (20, 32, 20), 3: (22, 36, 22), 4: (25, 40, 24), 5: (28, 42, 26)}
-META_CURL = 6.0
+CURL = {2: (12, 14, 12), 3: (12, 14, 12), 4: (12, 14, 12), 5: (12, 14, 12)}
+GAP = float(arg('--gap', 0.016))
+META_CURL = 3.0
+THUMB_ADD = float(arg('--tadd', 0.9))
+THUMB_UP = (8.0, 6.0, 4.0)
 TOP_SIDE = "L"
 
 SKIN_BACK = (0.74, 0.55, 0.44)
@@ -202,17 +205,19 @@ def curl_fingers(P, side, n, f_dir, s_i):
             d = P.direction(nm)
             axis = d.cross(n).normalized()
             P.rot(nm, rot_axis(axis, math.radians(CURL[fi][j - 1])))
-    # bas parmak: isaret parmagina yaslan (n etrafinda), hafif kivrim
-    plan = {1: (16.0, 6.0), 2: (4.0, 16.0), 3: (0.0, 14.0)}
+    # bas parmak: isaret parmagina yapisik, yukari (n yonune) hafif
     for j in (1, 2, 3):
         nm = f"finger1-{j}.{side}"
-        yaw, cu = plan[j]
+        tgt = P.direction(f"finger2-{min(j, 3)}.{side}")
         d = P.direction(nm)
-        tgt = P.direction(f"finger2-1.{side}")
-        sg = 1.0 if d.cross(tgt).dot(n) > 0 else -1.0
-        P.rot(nm, rot_axis(n, sg * math.radians(yaw)))
+        P.rot(nm, rot_axis(n, signed_angle(d, tgt, n) * THUMB_ADD))
         d = P.direction(nm)
-        P.rot(nm, rot_axis(d.cross(n).normalized(), math.radians(cu)))
+        P.rot(nm, rot_axis(d.cross(n).normalized(), math.radians(THUMB_UP[j - 1])))
+
+
+def report_spread(P, side):
+    r = P.direction(f"finger3-1.{side}")
+    log("parmak acilari (derece, orta parmaga gore):", {fi: [round(math.degrees(P.direction(f"finger{fi}-{j}.{side}").angle(P.direction(f"finger3-{j}.{side}"))), 1) for j in (1, 2, 3)] for fi in (2, 4, 5)})
 
 
 # ---------------------------------------------------------------- mesh
@@ -357,15 +362,15 @@ def make_material():
     return mat
 
 
-WATER_RX = 0.040
-WATER_RY = 0.044
+WATER_RX = 0.045
+WATER_RY = 0.045
 WATER_H = 0.026
 
 
-def make_water(loc):
+def make_water(loc, hands=()):
     rx, ry, h = WATER_RX, WATER_RY, WATER_H
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=12, radius=1.0)
+    bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=8, radius=1.0)
     for v in bm.verts:
         z = v.co.z
         v.co = Vector((v.co.x * rx, v.co.y * ry, (min(z, 0.0) * h) + h))
@@ -381,13 +386,58 @@ def make_water(loc):
     obj = bpy.data.objects.new("Water", me)
     bpy.context.scene.collection.objects.link(obj)
     obj.location = loc
+    # yalnizca canagin acik ic alani: ellerle boolean fark
+    bpy.context.view_layer.objects.active = obj
+    for hnd in hands:
+        m = obj.modifiers.new("cut", "BOOLEAN")
+        m.operation = "DIFFERENCE"
+        m.solver = "EXACT"
+        m.object = hnd
+        bpy.ops.object.modifier_apply(modifier=m.name)
+    # origin altta kalsin: mesh yerel z in [0,h] araliginda kalsin
+    log("su ucgen:", len(obj.data.polygons))
     wmat = bpy.data.materials.new("Water")
     wmat.diffuse_color = (0.55, 0.78, 0.92, 1.0)
     me.materials.append(wmat)
     return obj
 
 
+# ---------------------------------------------------------------- kesisim
+def _bvh(obj):
+    from mathutils.bvhtree import BVHTree
+    me = obj.data
+    verts = [v.co.copy() for v in me.vertices]
+    tris = [tuple(p.vertices) for p in me.polygons]
+    return BVHTree.FromPolygons(verts, tris), tris
+
+
+def overlap_report(a, b):
+    ba, ta = _bvh(a)
+    if b is a:
+        pairs = [(i, j) for i, j in ba.overlap(ba) if i < j and not (set(ta[i]) & set(ta[j]))]
+        return len(pairs)
+    bb, tb = _bvh(b)
+    return len(ba.overlap(bb))
+
+
 # ---------------------------------------------------------------- ana
+def mirror_object(src, name):
+    bm = bmesh.new()
+    bm.from_mesh(src.data)
+    for v in bm.verts:
+        v.co.x = -v.co.x
+    bmesh.ops.reverse_faces(bm, faces=bm.faces)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    o = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(o)
+    return o
+
+
 def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     base, rig = make_human()
@@ -397,48 +447,45 @@ def main():
     fwd.z = 0
     F = fwd.normalized() if fwd.length > 1e-4 else Vector((0, -1, 0))
     left = up.cross(F).normalized()
-    log("ileri yon:", [round(c, 3) for c in F], "sol:", [round(c, 3) for c in left],
-        "sol omuz x:", round(P.head("upperarm01.L").x, 3))
-    # sol (+left) omuz gercekten sol tarafta mi
     if (P.head("upperarm01.L") - P.head("upperarm01.R")).dot(left) < 0:
         left = -left
-        log("sol yon cevrildi")
     S_mid = (P.head("upperarm01.L") + P.head("upperarm01.R")) * 0.5
-    frames = {}
-    wrist_t = {}
-    for side in ("L", "R"):
-        s_i = 1.0 if side == "L" else -1.0
-        W = S_mid + left * (s_i * WRIST_X) + F * FORWARD + up * (-DROP + (TOP_LIFT if side == TOP_SIDE else 0.0))
-        wrist_t[side] = W
-        pole = -up * 1.0 + left * s_i * 0.35 - F * 0.4
-        yaw = YAW_TOP if side == TOP_SIDE else YAW_BOT
-        n, f, a = pose_arm(P, side, F, up, left, W, yaw, pole)
-        curl_fingers(P, side, n, f, s_i)
-        frames[side] = (n, f, a)
-    # nihai donusum: F -> +Y, bilek ortasi orijin
+    side = "L"
+    W = S_mid + left * WRIST_X + F * FORWARD + up * (-DROP)
+    pole = -up * 1.0 + left * 0.35 - F * 0.4
+    n, f, a = pose_arm(P, side, F, up, left, W, YAW_TOP, pole)
+    curl_fingers(P, side, n, f, 1.0)
+    report_spread(P, side)
     Rz = F.rotation_difference(Vector((0, 1, 0))).to_matrix().to_4x4()
-    mid = Rz @ ((P.head("wrist.L") + P.head("wrist.R")) * 0.5)
+    mid = Rz @ P.head("wrist.L")
     final_T = Matrix.Translation(-mid) @ Rz
-    objs = [build_hand_object(base, rig, P, s, final_T) for s in ("R", "L")]
-    # su konumu: avuc kemiklerinin ortasi
-    pts = [final_T @ P.head(f"metacarpal{i}.{s}") for i in (1, 2, 3, 4) for s in ("L", "R")]
+    hl = build_hand_object(base, rig, P, "L", final_T)
+    # serce kenari x=0'a 1.5 mm kala
+    xs = [v.co.x for v in hl.data.vertices if 0.01 < v.co.y < 0.06]
+    lx = (Rz.to_3x3() @ left).x
+    dx = (-GAP - max(xs)) if lx < 0 else (GAP - min(xs))
+    for v in hl.data.vertices:
+        v.co.x += dx
+    log("sol el x kaymasi:", round(dx, 4))
+    triangulate(hl)
+    hr = mirror_object(hl, "HandR")
+    objs = [hr, hl]
+    pts = [final_T @ P.head(f"metacarpal{i}.L") for i in (1, 2, 3, 4)]
     cen = sum(pts, Vector()) / len(pts)
-    log("avuc merkezi (metacarpal basi ort.):", [round(c, 4) for c in cen])
-    tip = [final_T @ P.tail(f"finger{i}-3.{s}") for i in (2, 3, 4, 5) for s in ("L", "R")]
-    tc = sum(tip, Vector()) / len(tip)
-    log("parmak ucu ort.:", [round(c, 4) for c in tc])
-    water_loc = Vector((0.0, float(arg("--wy", 0.060)), float(arg("--wz", 0.002))))
-
-    # cok yuksek cozunurluklu ag: ucgenle, dusur
-    for o in objs:
-        triangulate(o)
-    decimate_to(objs, MAX_TRIS_TOTAL)
+    cen.x = abs(cen.x + dx)
+    tips = [final_T @ P.tail(f"finger{i}-3.L") for i in (2, 3, 4, 5)] + [final_T @ P.tail("finger1-3.L")]
+    tz = max(t.z for t in tips)
+    log("avuc merkezi:", [round(c, 4) for c in cen], "| parmak/basparmak ucu en yuksek z:", round(tz, 4))
+    water_loc = Vector((0.0, cen.y + float(arg("--wdy", 0.0)), cen.z + float(arg("--wdz", -0.002))))
+    log("KESISIM el-el:", overlap_report(hl, hr), "| kendi L:", overlap_report(hl, hl), "| kendi R:", overlap_report(hr, hr))
+    # simetri: R kosesi = L kosesinin X aynasi
+    err = max((Vector((-a.co.x, a.co.y, a.co.z)) - b.co).length for a, b in zip(hl.data.vertices, hr.data.vertices))
+    log("SIMETRI en buyuk sapma (m):", err)
     mat = make_material()
     for o in objs:
         paint(o)
         o.data.materials.append(mat)
-    water = make_water(water_loc)
-    # insan ve iskeleti at
+    water = make_water(water_loc, objs)
     bpy.data.objects.remove(base, do_unlink=True)
     bpy.data.objects.remove(rig, do_unlink=True)
     tris = [len(o.data.polygons) for o in objs]

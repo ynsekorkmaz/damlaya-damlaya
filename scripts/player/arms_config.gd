@@ -18,8 +18,8 @@ const WATER_WOBBLE: float = 0.02
 const WATER_WOBBLE_HZ: float = 2.6
 
 # ---- Duruslar (model orijini = bilekler; derece: pitch, yaw, roll) ----
-const CUP_POS := Vector3(0.0, -0.27, -0.34)
-const CUP_ROT_DEG := Vector3(22.0, 0.0, 0.0)
+const CUP_POS := Vector3(0.0, -0.26, -0.34)
+const CUP_ROT_DEG := Vector3(18.0, 0.0, 0.0)
 const IDLE_POS := Vector3(0.0, -0.62, -0.3)
 const IDLE_ROT_DEG := Vector3(14.0, 0.0, 0.0)
 const BLEND_SPEED: float = 7.0

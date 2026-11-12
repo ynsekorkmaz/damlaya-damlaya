@@ -69,16 +69,25 @@ func test_terrain_mesh() -> void:
 	var mesh: ArrayMesh = TerrainBuilder.build_mesh()
 	var arrays: Array = mesh.surface_get_arrays(0)
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var tris: int = verts.size() / 3
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var norms: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var tris: int = idx.size() / 3
+	var w: int = Config.TERRAIN_CELLS + 1
+	check(verts.size() == w * w, "kose paylasimi (%d kose)" % verts.size())
 	check(tris == Config.TERRAIN_CELLS * Config.TERRAIN_CELLS * 2, "ucgen sayisi (%d)" % tris)
-	check(tris < 60000, "ucgen butcesi")
+	check(tris <= 25000, "arazi ucgen butcesi")
 	var up_ok: bool = true
-	for i in range(0, verts.size(), 3):
+	for i in range(0, idx.size(), 3):
 		# Godot ön yüzü saat yönü: (v2-v0)x(v1-v0) yukarı bakmalı
-		var n: Vector3 = (verts[i + 2] - verts[i]).cross(verts[i + 1] - verts[i])
+		var n: Vector3 = (verts[idx[i + 2]] - verts[idx[i]]).cross(verts[idx[i + 1]] - verts[idx[i]])
 		if n.y <= 0.0:
 			up_ok = false
 	check(up_ok, "arazi ucgenleri yukari bakiyor (sarim)")
+	var norm_ok: bool = true
+	for n in norms:
+		if absf(n.length() - 1.0) > 0.001 or n.y <= 0.0:
+			norm_ok = false
+	check(norm_ok, "arazi normalleri birim uzunlukta ve yukari bakiyor")
 	var body: StaticBody3D = TerrainBuilder.build()
 	check(body.get_child_count() == 2, "StaticBody3D 2 cocuk")
 	body.free()
@@ -97,5 +106,8 @@ func test_rocks() -> void:
 		var p := Vector2(a[i].origin.x, a[i].origin.z)
 		if p.length() < Config.PIT_RADIUS or p.distance_to(spawn) < 3.0:
 			clear = false
+	var rock_mesh: ArrayMesh = RocksBuilder.build_rock_mesh()
+	var ri: PackedInt32Array = rock_mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX]
+	check(ri.size() / 3 * Config.ROCK_COUNT < 4000, "kaya ucgen butcesi (%d)" % (ri.size() / 3 * Config.ROCK_COUNT))
 	check(same, "kaya yerlesimi belirlenimci")
 	check(clear, "kayalar cukura ve dogus noktasina yakin degil")

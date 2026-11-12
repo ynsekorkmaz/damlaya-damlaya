@@ -1,5 +1,5 @@
 extends RefCounted
-## Düz gölgeli düşük poligonlu arazi: StaticBody3D + MeshInstance3D + çarpışma.
+## Yumuşak gölgeli, indeksli arazi: StaticBody3D + MeshInstance3D + çarpışma.
 
 const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
@@ -37,36 +37,42 @@ static func build_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_material(mat)
+	var w: int = cells + 1
+	for iz in range(w):
+		for ix in range(w):
+			var x: float = -half + ix * step
+			var z: float = -half + iz * step
+			var y: float = heights[iz * w + ix]
+			var n: Vector3 = normal_at(x, z)
+			st.set_normal(n)
+			st.set_color(_color_for(x, y, z, n))
+			st.add_vertex(Vector3(x, y, z))
 	for iz in range(cells):
 		for ix in range(cells):
-			var x0: float = -half + ix * step
-			var z0: float = -half + iz * step
-			var a := Vector3(x0, heights[iz * (cells + 1) + ix], z0)
-			var b := Vector3(x0 + step, heights[iz * (cells + 1) + ix + 1], z0)
-			var c := Vector3(x0, heights[(iz + 1) * (cells + 1) + ix], z0 + step)
-			var d := Vector3(x0 + step, heights[(iz + 1) * (cells + 1) + ix + 1], z0 + step)
+			var a: int = iz * w + ix
+			var b: int = a + 1
+			var c: int = a + w
+			var d: int = c + 1
 			# Yukarıdan bakınca saat yönü (Godot ön yüzü)
-			_add_triangle(st, a, b, d)
-			_add_triangle(st, a, d, c)
+			for k in [a, b, d, a, d, c]:
+				st.add_index(k)
 	return st.commit()
 
 
-static func _add_triangle(st: SurfaceTool, v0: Vector3, v1: Vector3, v2: Vector3) -> void:
-	var n: Vector3 = (v2 - v0).cross(v1 - v0).normalized()
-	var color: Color = _color_for((v0 + v1 + v2) / 3.0, n)
-	for v in [v0, v1, v2]:
-		st.set_normal(n)
-		st.set_color(color)
-		st.add_vertex(v)
+## Normal, height fonksiyonunun merkezi farkından: yüz normaline bağlı değil.
+static func normal_at(x: float, z: float) -> Vector3:
+	var e: float = Config.NORMAL_EPS
+	var dx: float = TerrainShape.height(x + e, z) - TerrainShape.height(x - e, z)
+	var dz: float = TerrainShape.height(x, z + e) - TerrainShape.height(x, z - e)
+	return Vector3(-dx, 2.0 * e, -dz).normalized()
 
 
-static func _color_for(p: Vector3, n: Vector3) -> Color:
-	var jitter: float = 0.5 + 0.5 * sin(p.x * Config.COLOR_HASH_X + p.z * Config.COLOR_HASH_Z)
-	var col: Color = Palette.GRASS.lerp(Palette.GRASS_DARK, jitter * Config.COLOR_JITTER)
-	var hill: float = smoothstep(Config.HILLTOP_DRY_START, Config.HILLTOP_DRY_END, p.y / Config.RIM_HEIGHT)
+static func _color_for(x: float, y: float, z: float, n: Vector3) -> Color:
+	var wave: float = 0.5 + 0.5 * sin(x * Config.COLOR_WAVE_FREQ_X + 1.3) * cos(z * Config.COLOR_WAVE_FREQ_Z - 0.7)
+	var col: Color = Palette.GRASS.lerp(Palette.GRASS_DARK, wave * Config.COLOR_WAVE_AMOUNT)
+	var hill: float = smoothstep(Config.HILLTOP_DRY_START, Config.HILLTOP_DRY_END, y / Config.RIM_HEIGHT)
 	col = col.lerp(Palette.DRY_EARTH, hill * Config.HILLTOP_DRY_AMOUNT)
-	var earth: float = 1.0 - smoothstep(Config.EARTH_HEIGHT_LOW, Config.EARTH_HEIGHT_HIGH, p.y)
+	var earth: float = 1.0 - smoothstep(Config.EARTH_HEIGHT_LOW, Config.EARTH_HEIGHT_HIGH, y)
 	col = col.lerp(Palette.DRY_EARTH, earth)
 	var rock: float = 1.0 - smoothstep(Config.ROCK_NORMAL_Y_LOW, Config.ROCK_NORMAL_Y_HIGH, n.y)
-	var rock_col: Color = Palette.ROCK.lerp(Palette.ROCK_DARK, jitter)
-	return col.lerp(rock_col, rock)
+	return col.lerp(Palette.ROCK.lerp(Palette.ROCK_DARK, wave), rock)

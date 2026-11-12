@@ -1,23 +1,9 @@
 extends RefCounted
-## Vadiye serpilmiş düşük poligonlu kayalar, tek MultiMeshInstance3D.
+## Vadiye serpilmiş yumuşak normalli, yuvarlak kayalar, tek MultiMeshInstance3D.
 
 const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
 const TerrainShape = preload("res://scripts/core/terrain_shape.gd")
-
-const _T := 1.6180339887
-const _ICO_VERTS: Array[Vector3] = [
-	Vector3(-1, _T, 0), Vector3(1, _T, 0), Vector3(-1, -_T, 0), Vector3(1, -_T, 0),
-	Vector3(0, -1, _T), Vector3(0, 1, _T), Vector3(0, -1, -_T), Vector3(0, 1, -_T),
-	Vector3(_T, 0, -1), Vector3(_T, 0, 1), Vector3(-_T, 0, -1), Vector3(-_T, 0, 1),
-]
-const _ICO_FACES: Array[int] = [
-	0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
-	1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
-	3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
-	4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1,
-]
-
 
 static func build() -> MultiMeshInstance3D:
 	var placements: Array[Transform3D] = make_placements()
@@ -60,34 +46,37 @@ static func make_placements() -> Array[Transform3D]:
 
 
 static func build_rock_mesh() -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = Config.ROCK_SEED + 1
-	var verts: Array[Vector3] = []
-	for v in _ICO_VERTS:
-		var jitter: float = 1.0 + rng.randf_range(-Config.ROCK_VERTEX_JITTER, Config.ROCK_VERTEX_JITTER)
-		verts.append(v.normalized() * 0.5 * jitter)
-
+	var rings: int = Config.ROCK_RINGS
+	var segs: int = Config.ROCK_SEGMENTS
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 1.0
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_material(mat)
-	for f in range(0, _ICO_FACES.size(), 3):
-		var a: Vector3 = verts[_ICO_FACES[f]]
-		var b: Vector3 = verts[_ICO_FACES[f + 1]]
-		var c: Vector3 = verts[_ICO_FACES[f + 2]]
-		# Godot ön yüzü saat yönü: dışa bakan normal (c-a)x(b-a) olmalı
-		var n: Vector3 = (c - a).cross(b - a)
-		if n.dot(a + b + c) < 0.0:
-			var tmp: Vector3 = b
-			b = c
-			c = tmp
-			n = -n
-		n = n.normalized()
-		var col: Color = Palette.ROCK.lerp(Palette.ROCK_DARK, rng.randf())
-		for v in [a, b, c]:
-			st.set_normal(n)
-			st.set_color(col)
-			st.add_vertex(v)
+	# Dilimli küre: köşe konumu yönün yumuşak sinüs dalgasıyla şişirilir, normal küre normalidir
+	for r in range(rings + 1):
+		var phi: float = PI * r / float(rings)
+		for s in range(segs + 1):
+			var theta: float = TAU * s / float(segs)
+			var dir := Vector3(sin(phi) * cos(theta), cos(phi), sin(phi) * sin(theta))
+			var f: float = Config.ROCK_BUMP_FREQ
+			var bump: float = (sin(dir.x * f + 0.7) + sin(dir.y * f * 1.3 + 2.1) + sin(dir.z * f + 4.0)) / 3.0
+			st.set_normal(dir)
+			st.set_color(Palette.ROCK_DARK.lerp(Palette.ROCK, smoothstep(-0.9, 0.9, dir.y)))
+			st.add_vertex(dir * 0.5 * (1.0 + Config.ROCK_BUMP * bump))
+	var w: int = segs + 1
+	for r in range(rings):
+		for s in range(segs):
+			var a: int = r * w + s
+			var b: int = a + 1
+			var c: int = a + w
+			var d: int = c + 1
+			# Godot ön yüzü saat yönü, dışa bakar
+			if r > 0:
+				for k in [a, b, c]:
+					st.add_index(k)
+			if r < rings - 1:
+				for k in [b, d, c]:
+					st.add_index(k)
 	return st.commit()

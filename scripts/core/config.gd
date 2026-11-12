@@ -25,7 +25,8 @@ const CALM_FAR := 22.0     # bu yarıçapta dalga tam güçte
 
 # Arazi ağı
 const TERRAIN_SIZE := 170.0
-const TERRAIN_CELLS := 56
+const TERRAIN_CELLS := 100  # hücre ~1,7 m, 20.000 üçgen
+const NORMAL_EPS := 1.7    # normal için merkezi fark aralığı (m)
 
 # Arazi renkleri
 const EARTH_HEIGHT_LOW := -1.2
@@ -35,9 +36,9 @@ const ROCK_NORMAL_Y_HIGH := 0.92
 const HILLTOP_DRY_START := 0.35  # RIM_HEIGHT oranı
 const HILLTOP_DRY_END := 0.8
 const HILLTOP_DRY_AMOUNT := 0.6
-const COLOR_HASH_X := 12.9898
-const COLOR_HASH_Z := 78.233
-const COLOR_JITTER := 0.6  # çimen rengi çeşitlemesi (0-1)
+const COLOR_WAVE_FREQ_X := 0.045  # geniş, yumuşak çimen tonu dalgası
+const COLOR_WAVE_FREQ_Z := 0.037
+const COLOR_WAVE_AMOUNT := 0.55   # çimen rengi çeşitlemesi (0-1)
 
 # Oyuncu doğuş noktası (çukura 14 m, çukura bakar); y main.gd'de araziye göre ayarlanır
 const PLAYER_SPAWN := Vector3(0.0, 0.0, 14.0)
@@ -57,8 +58,8 @@ const PITCH_LIMIT_DEG := 85.0
 
 # Gökyüzü ve ışık
 const SUN_ROTATION_DEG := Vector3(-48.0, -35.0, 0.0)
-const SUN_ENERGY := 1.1
-const AMBIENT_ENERGY := 0.9
+const SUN_ENERGY := 0.95
+const AMBIENT_ENERGY := 1.15
 const SKY_SUN_ANGLE_MAX := 30.0
 
 # Kayalar
@@ -66,8 +67,11 @@ const ROCK_COUNT := 20
 const ROCK_SEED := 7
 const ROCK_SCALE_MIN := Vector3(0.8, 0.6, 0.8)
 const ROCK_SCALE_MAX := Vector3(2.6, 1.8, 2.6)
-const ROCK_VERTEX_JITTER := 0.18
-const ROCK_SINK := 0.25            # kayanın zemine gömülme miktarı
+const ROCK_RINGS := 8              # dilim sayısı (enlem)
+const ROCK_SEGMENTS := 12          # boylam dilimi
+const ROCK_BUMP := 0.10            # yüzey dalgalanma oranı (yumuşak)
+const ROCK_BUMP_FREQ := 3.1
+const ROCK_SINK := 0.35            # kayanın zemine gömülme miktarı
 const ROCK_PIT_CLEARANCE := 4.0    # çukur kenarından uzaklık
 const ROCK_RIM_CLEARANCE := 6.0    # vadi sınırından içeri uzaklık
 const ROCK_SPAWN_CLEARANCE := 4.0  # doğuş noktasından uzaklık (en az 3 m)

@@ -9,6 +9,9 @@ const CAMERA_FAR: float = 400.0
 const FALL_LIMIT_Y: float = -30.0
 const FLOOR_SNAP: float = 0.3
 
+## Dükkân paneli açıkken false: hareket ve bakış durur.
+var input_enabled: bool = true
+
 var _camera: Camera3D
 var _pitch: float = 0.0
 var _spawn_position: Vector3
@@ -42,6 +45,8 @@ func get_camera() -> Camera3D:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not input_enabled:
+		return
 	if event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
 		if button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
@@ -59,12 +64,14 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= Config.GRAVITY * delta
-	elif Input.is_action_just_pressed("jump"):
+	elif input_enabled and Input.is_action_just_pressed("jump"):
 		velocity.y = Config.JUMP_VELOCITY
 
-	var input_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input_dir: Vector2 = Vector2.ZERO
+	if input_enabled:
+		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction: Vector3 = global_transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)
-	var speed: float = Config.SPRINT_SPEED if Input.is_action_pressed("sprint") else Config.WALK_SPEED
+	var speed: float = Config.SPRINT_SPEED if (input_enabled and Input.is_action_pressed("sprint")) else Config.WALK_SPEED
 	var step: float = Config.ACCELERATION * delta
 	velocity.x = move_toward(velocity.x, direction.x * speed, step)
 	velocity.z = move_toward(velocity.z, direction.z * speed, step)

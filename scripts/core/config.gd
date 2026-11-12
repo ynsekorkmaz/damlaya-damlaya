@@ -202,6 +202,17 @@ const RIPPLE_MAX_RADIUS := 3.2
 const RIPPLE_START_RADIUS := 0.4
 const RIPPLE_LIFT := 0.04
 
+# Dükkân: doğuş noktasından görünür, en büyük gölün (19 m) dışında, kaynak ile çukur arasındaki yolun yanında.
+# Yüz (-Z) çukura döner; y araziden alınır.
+const SHOP_POSITION := Vector3(10.0, 0.0, 20.0)
+const SHOP_SIZE := Vector3(3.2, 2.6, 1.6)        # kaplama kutusu (en, boy, derinlik; derinlik +Z'ye uzanır)
+const SHOP_COLLIDE_SIZE := Vector3(3.0, 1.1, 0.9) # tezgâh çarpışma kutusu
+const SHOP_INTERACT_RADIUS := 3.5     # oyuncunun tezgâh önüne uzaklığı (m)
+const SHOP_LOOK_COS := 0.75           # dükkâna bakış
+const SHOP_LOOK_HEIGHT := 1.1         # bakılan noktanın zemin üstü yüksekliği
+const SHOP_ROCK_CLEARANCE := 5.0      # kayalar dükkândan bu kadar uzak durur (m)
+const SHOP_MODEL_PATH := "res://assets/models/shop/shop.glb"
+
 # Elde su (kamera çocuğu)
 const HELD_OFFSET := Vector3(0.24, -0.26, -0.5)
 const HELD_TILT_DEG := Vector3(22.0, 0.0, -6.0)

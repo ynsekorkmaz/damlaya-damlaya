@@ -100,13 +100,16 @@ static func _random_position(rng: RandomNumberGenerator) -> Vector2:
 	return Vector2(cos(angle), sin(angle)) * r
 
 
-## En büyük çanaktan, vadi kenarından ve doğuş noktasından uzak mı.
+## En büyük çanaktan, vadi kenarından, doğuş noktasından ve dükkândan uzak mı.
 static func is_allowed(pos: Vector2) -> bool:
 	var spawn := Vector2(Config.PLAYER_SPAWN.x, Config.PLAYER_SPAWN.z)
 	var r: float = pos.length()
 	if r < BasinShape.max_radius() + Config.ROCK_PIT_CLEARANCE:
 		return false
 	if r > Config.VALLEY_RADIUS - Config.ROCK_RIM_CLEARANCE:
+		return false
+	var shop := Vector2(Config.SHOP_POSITION.x, Config.SHOP_POSITION.z)
+	if pos.distance_to(shop) < Config.SHOP_ROCK_CLEARANCE:
 		return false
 	return pos.distance_to(spawn) >= Config.ROCK_SPAWN_CLEARANCE
 

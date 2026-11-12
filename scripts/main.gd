@@ -8,7 +8,9 @@ const SkyBuilder = preload("res://scripts/world/sky_builder.gd")
 const TerrainBuilder = preload("res://scripts/world/terrain_builder.gd")
 const RocksBuilder = preload("res://scripts/world/rocks_builder.gd")
 const SpringBuilder = preload("res://scripts/world/spring_builder.gd")
+const ShopBuilder = preload("res://scripts/world/shop_builder.gd")
 const Economy = preload("res://scripts/core/economy.gd")
+const Cfg = preload("res://scripts/core/economy_config.gd")
 const BasinShape = preload("res://scripts/core/basin_shape.gd")
 const GameState = preload("res://scripts/core/game_state.gd")
 
@@ -20,6 +22,7 @@ func _ready() -> void:
 	add_child(terrain)
 	add_child(RocksBuilder.build())
 	add_child(SpringBuilder.build())
+	add_child(ShopBuilder.build())
 
 	var lake := Node3D.new()
 	lake.set_script(preload("res://scripts/world/lake_view.gd"))
@@ -57,6 +60,12 @@ func _ready() -> void:
 		hud.set("game", game)
 		add_child(hud)
 
+	var shop_panel := CanvasLayer.new()
+	shop_panel.set_script(preload("res://scripts/ui/shop_panel.gd"))
+	shop_panel.set("game", game)
+	shop_panel.set("player", player)
+	add_child(shop_panel)
+
 	var debug_hud := CanvasLayer.new()
 	debug_hud.set_script(preload("res://scripts/ui/debug_hud.gd"))
 	add_child(debug_hud)
@@ -65,6 +74,8 @@ func _ready() -> void:
 	var cam_at := Vector2.INF
 	var look_at := Vector2.INF
 	var pitch_deg: float = 0.0
+	var debug_carried: float = -1.0
+	var open_shop: bool = false
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--camera-at="):
 			cam_at = _parse_xz(arg.substr("--camera-at=".length()))
@@ -75,7 +86,16 @@ func _ready() -> void:
 		elif arg.begins_with("--debug-drops="):
 			st.total_drops = arg.substr("--debug-drops=".length()).to_float()
 		elif arg.begins_with("--debug-carried="):
-			st.carried = minf(arg.substr("--debug-carried=".length()).to_float(), Economy.tool_capacity(st))
+			debug_carried = arg.substr("--debug-carried=".length()).to_float()
+		elif arg.begins_with("--debug-money="):
+			st.money = arg.substr("--debug-money=".length()).to_float()
+			st.total_money_earned = maxf(st.total_money_earned, st.money)
+		elif arg.begins_with("--debug-tool="):
+			st.tool_level = clampi(arg.substr("--debug-tool=".length()).to_int(), 0, Cfg.TOOLS.size() - 1)
+		elif arg == "--open-shop":
+			open_shop = true
+	if debug_carried >= 0.0:
+		st.carried = minf(debug_carried, Economy.tool_capacity(st))
 	var basin_r: float = BasinShape.radius(st.total_drops)
 	var basin_d: float = BasinShape.depth(st.total_drops)
 	(terrain.get_node("Patch") as Node).call("bind", game)
@@ -85,6 +105,9 @@ func _ready() -> void:
 			player.rotation.y = atan2(cam_at.x - look_at.x, cam_at.y - look_at.y)
 	if pitch_deg != 0.0:
 		(player.call("get_camera") as Camera3D).rotation.x = deg_to_rad(pitch_deg)
+
+	if open_shop:
+		shop_panel.call("open")
 
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--screenshot="):

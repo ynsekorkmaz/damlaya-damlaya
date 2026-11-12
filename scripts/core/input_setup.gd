@@ -9,6 +9,7 @@ const ACTION_KEYS: Dictionary = {
 	"jump": [KEY_SPACE],
 	"sprint": [KEY_SHIFT],
 	"toggle_debug": [KEY_F3],
+	"shop": [KEY_E],
 }
 
 

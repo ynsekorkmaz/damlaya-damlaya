@@ -291,6 +291,16 @@ func test_bowl() -> void:
 		if Vector2(o.x, o.z).distance_to(spring) < Config.SPRING_RADIUS + float(rock["size"]) * 0.6 + 0.5:
 			overlap = true
 	check(not overlap, "kayalar su kaynagiyla cakismiyor")
+	# Dukkan: gol disinda, dogus noktasindan ve kaynaktan yurume mesafesinde, kayalar uzakta
+	var shop := Vector2(Config.SHOP_POSITION.x, Config.SHOP_POSITION.z)
+	check(shop.length() > BasinShape.max_radius() + 2.5, "dukkan en buyuk golun ve dokme bolgesinin disinda (%f)" % shop.length())
+	check(sp.distance_to(shop) < 30.0 and spring.distance_to(shop) < 30.0, "dukkan dogus noktasina ve kaynaga yakin")
+	var shop_clear: bool = true
+	for rock in rocks:
+		var ro: Vector3 = (rock["transform"] as Transform3D).origin
+		if Vector2(ro.x, ro.z).distance_to(shop) < Config.SHOP_ROCK_CLEARANCE:
+			shop_clear = false
+	check(shop_clear, "kayalar dukkanin uzerine gelmiyor")
 
 
 func test_lake_shape() -> void:

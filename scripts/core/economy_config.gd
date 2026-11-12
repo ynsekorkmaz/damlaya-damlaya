@@ -7,11 +7,11 @@ const FILL_SECONDS: float = 1.5
 
 # Sirayla alinir. cost: bu aleti almanin parasi.
 const TOOLS: Array[Dictionary] = [
-	{"id": "palm", "name_tr": "Avuç", "capacity": 5.0, "cost": 0.0},
-	{"id": "cup", "name_tr": "Tas", "capacity": 15.0, "cost": 12.0},
-	{"id": "bucket", "name_tr": "Kova", "capacity": 50.0, "cost": 90.0},
-	{"id": "double_bucket", "name_tr": "Çift kova", "capacity": 140.0, "cost": 700.0},
-	{"id": "yoke", "name_tr": "Sırık ve dört kova", "capacity": 400.0, "cost": 6000.0},
+	{"id": "palm", "name_tr": "Avuç", "desc_tr": "Çıplak ellerin.", "capacity": 5.0, "cost": 0.0},
+	{"id": "cup", "name_tr": "Tas", "desc_tr": "Avuçtan çok daha fazla su alır.", "capacity": 15.0, "cost": 12.0},
+	{"id": "bucket", "name_tr": "Kova", "desc_tr": "Tek elde taşınan sağlam bir kova.", "capacity": 50.0, "cost": 90.0},
+	{"id": "double_bucket", "name_tr": "Çift kova", "desc_tr": "İki elde birer kova; denge de iyi.", "capacity": 140.0, "cost": 700.0},
+	{"id": "yoke", "name_tr": "Sırık ve dört kova", "desc_tr": "Omuzda sırık, uçlarda sarkan kovalar.", "capacity": 400.0, "cost": 6000.0},
 ]
 
 # --- Para ---
@@ -31,11 +31,11 @@ const MAX_SOURCE_COUNT: int = 100000
 const COST_ROUND_EPSILON: float = 1.0e-6
 
 const SOURCES: Array[Dictionary] = [
-	{"id": "crack", "name_tr": "Çatlak", "rate": 0.5, "base_cost": 15.0},
-	{"id": "dew", "name_tr": "Çiğ", "rate": 3.0, "base_cost": 100.0},
-	{"id": "rain_cloud", "name_tr": "Yağmur bulutu", "rate": 20.0, "base_cost": 1100.0},
-	{"id": "spring", "name_tr": "Kaynak", "rate": 120.0, "base_cost": 12000.0},
-	{"id": "stream_mouth", "name_tr": "Dere ağzı", "rate": 700.0, "base_cost": 150000.0},
+	{"id": "crack", "name_tr": "Çatlak", "desc_tr": "Kayadaki ince bir sızıntı.", "rate": 0.5, "base_cost": 15.0},
+	{"id": "dew", "name_tr": "Çiğ", "desc_tr": "Sabah otlardan süzülen damlalar.", "rate": 3.0, "base_cost": 100.0},
+	{"id": "rain_cloud", "name_tr": "Yağmur bulutu", "desc_tr": "Vadiye küçük bir yağmur getirir.", "rate": 20.0, "base_cost": 1100.0},
+	{"id": "spring", "name_tr": "Kaynak", "desc_tr": "Toprağın altından fışkıran taze su.", "rate": 120.0, "base_cost": 12000.0},
+	{"id": "stream_mouth", "name_tr": "Dere ağzı", "desc_tr": "Yamaçtan inen bir dere göle bağlanır.", "rate": 700.0, "base_cost": 150000.0},
 ]
 
 # --- Kayip ---
@@ -44,10 +44,10 @@ const BASE_LOSS_PERCENT: float = 30.0
 const MIN_LOSS_PERCENT: float = 0.0
 
 const LOSS_UPGRADES: Array[Dictionary] = [
-	{"id": "rock_bed", "name_tr": "Kaya yatağı", "cost": 200.0, "points": 8.0},
-	{"id": "reed_edge", "name_tr": "Kamış kenarı", "cost": 2500.0, "points": 7.0},
-	{"id": "shade_trees", "name_tr": "Gölge ağaçları", "cost": 30000.0, "points": 7.0},
-	{"id": "clay_floor", "name_tr": "Kil taban", "cost": 400000.0, "points": 5.0},
+	{"id": "rock_bed", "name_tr": "Kaya yatağı", "desc_tr": "Çukurun tabanına taş döşenir.", "cost": 200.0, "points": 8.0},
+	{"id": "reed_edge", "name_tr": "Kamış kenarı", "desc_tr": "Kamışlar kıyıdan sızmayı keser.", "cost": 2500.0, "points": 7.0},
+	{"id": "shade_trees", "name_tr": "Gölge ağaçları", "desc_tr": "Gölgede daha az buharlaşır.", "cost": 30000.0, "points": 7.0},
+	{"id": "clay_floor", "name_tr": "Kil taban", "desc_tr": "Kil toprak suyu tutar.", "cost": 400000.0, "points": 5.0},
 ]
 
 # --- Gorunurluk ---

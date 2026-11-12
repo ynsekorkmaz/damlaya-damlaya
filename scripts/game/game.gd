@@ -5,6 +5,8 @@ signal poured(drops: float, money: float)
 signal filled(amount: float)
 signal stage_changed(index: int)
 signal prompt_changed(text: String)
+signal purchased(kind: String, id: String)
+signal shop_requested
 
 const GameState = preload("res://scripts/core/game_state.gd")
 const Economy = preload("res://scripts/core/economy.gd")
@@ -82,6 +84,37 @@ func try_pour() -> float:
 func income_per_minute() -> float:
 	var drops_per_sec: float = Economy.passive_rate_net(state) + _canal_delivered()
 	return drops_per_sec / Economy.drops_per_money(state) * SECONDS_PER_MINUTE
+
+
+# ---------- Satın alma ----------
+
+func buy_tool() -> bool:
+	return _finish_purchase(Economy.buy_tool(state), "tool", Cfg.TOOLS[state.tool_level]["id"])
+
+
+func buy_rate() -> bool:
+	return _finish_purchase(Economy.buy_rate(state), "rate", "rate")
+
+
+func buy_source(id: String) -> bool:
+	return _finish_purchase(Economy.buy_source(state, id), "source", id)
+
+
+func buy_loss(id: String) -> bool:
+	return _finish_purchase(Economy.buy_loss(state, id), "loss", id)
+
+
+func _finish_purchase(ok: bool, kind: String, id: String) -> bool:
+	if not ok:
+		return false
+	purchased.emit(kind, id)
+	save()
+	return true
+
+
+## Etkileşim, oyuncu dükkânın önündeyken E'ye basınca çağırır; panel dinler.
+func request_shop() -> void:
+	shop_requested.emit()
 
 
 func set_prompt(text: String) -> void:

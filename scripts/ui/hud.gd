@@ -80,6 +80,8 @@ func _ready() -> void:
 	if game != null:
 		if game.has_signal("poured"):
 			game.connect("poured", _on_poured)
+		if game.has_signal("purchased"):
+			game.connect("purchased", _on_purchased)
 		if game.has_signal("stage_changed"):
 			game.connect("stage_changed", _on_stage_changed)
 		if game.has_signal("prompt_changed"):
@@ -316,6 +318,10 @@ func _apply_prompt(text: String) -> void:
 
 func _on_prompt_changed(text: String) -> void:
 	_apply_prompt(text)
+
+
+func _on_purchased(_kind: String, _id: String) -> void:
+	_refresh()
 
 
 func _on_poured(_drops: float, money: float) -> void:

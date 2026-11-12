@@ -35,3 +35,5 @@ Hedef bilgisayar: 8 GB RAM, ekran kartı yok (tümleşik grafik).
 | Ayni, yere 30 derece bakis | 58 | 37.081 | 40 | Intel Iris Xe, 1280x720, 12.11.2026 |
 | Ayni, 1.500 damla, cukura bakis | 60 | 32.019 | 45 | Intel Iris Xe, 1280x720, 12.11.2026 |
 | Ayni, tepe yamacina bakis | 59 | 35.593 | 37 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Dukkan (yer tutucu), dukkan paneli acik (500 para, 3.000 damla) | 60 | 36.217 | 109 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Elde alet yer tutucusu: tas / kova / sirik (dukkan gorunur) | 60 | 39.715 / 32.659 / 33.171 | 50 / 49 / 55 | Intel Iris Xe, 1280x720, 12.11.2026 |

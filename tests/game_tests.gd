@@ -50,6 +50,7 @@ func _init() -> void:
 	check(_stages == [1], "asama degisimi sinyali (%s)" % str(_stages))
 	g._process(0.016)
 	check(_stages == [1], "ayni asama tekrar yayilmaz")
+	test_purchases()
 	g.free()
 	InputSetup.register()
 	check(InputMap.has_action("interact") and InputMap.has_action("pour"), "interact ve pour eylemleri kayitli")
@@ -57,6 +58,27 @@ func _init() -> void:
 	check(_has_mouse("pour", MOUSE_BUTTON_RIGHT) and not _has_mouse("pour", MOUSE_BUTTON_LEFT), "pour sag tik")
 	print("Kontrol: %d, basarisiz: %d" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
+
+
+func test_purchases() -> void:
+	var g: Node = GameScript.new()
+	g.setup(false)
+	var bought: Array[String] = []
+	g.connect("purchased", func(k: String, i: String) -> void: bought.append(k + ":" + i))
+	check(not g.buy_tool() and not g.buy_rate() and not g.buy_source("crack") and not g.buy_loss("rock_bed"), "para yokken hicbiri alinmaz")
+	check(bought.is_empty() and g.state.tool_level == 0, "basarisiz alimda sinyal ve seviye degismez")
+	g.state.money = 10000.0
+	check(g.buy_tool() and g.state.tool_level == 1 and absf(g.state.money - (10000.0 - Cfg.TOOLS[1]["cost"])) < 1e-9, "alet alimi")
+	var before: float = g.state.money
+	check(g.buy_rate() and g.state.rate_level == 1 and g.state.money < before, "oran alimi")
+	check(g.buy_source("crack") and g.state.sources["crack"] == 1, "kaynak alimi")
+	check(g.buy_loss("rock_bed") and g.state.loss_upgrades.has("rock_bed"), "kayip alimi")
+	check(not g.buy_loss("rock_bed"), "alinmis kayip tekrar alinmaz")
+	check(not g.buy_source("yok"), "bilinmeyen kaynak alinmaz")
+	check(bought == ["tool:cup", "rate:rate", "source:crack", "loss:rock_bed"], "satin alma sinyalleri (%s)" % str(bought))
+	g.state.money = 0.5
+	check(not g.buy_source("crack") and g.state.sources["crack"] == 1 and g.state.money == 0.5, "para yetmezse false, durum ayni")
+	g.free()
 
 
 func check(cond: bool, msg: String) -> void:

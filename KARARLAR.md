@@ -9,6 +9,6 @@
 - Tüm ayar sayıları scripts/core/config.gd içinde; scripts/core saf mantıktır (Node yok).
 - Arazi yumuşak gölgeli indeksli ArrayMesh (düz gölgeleme yerine: yüzler tek tek seçilip görüntü köşeli duruyordu; normal height fonksiyonunun merkezi farkından, hücre ~1,7 m), çarpışma trimesh (backface_collision açık).
 - Tekrar eden nesneler (kayalar) tek MultiMeshInstance3D.
-- Kaya yerleşimi tohumlu ve belirlenimcidir; kayalara şimdilik çarpışma yok.
 - Girdi eylemleri project.godot'a yazılmaz, kodla kaydedilir (InputSetup).
 - Dışarıdan model, doku, eklenti indirilmez.
+- Kayalar 3 biçimli (3 MultiMesh), sinüsle bozulmuş yumuşak gölgeli hacimler; 1 m ve üstü kayalara küre çarpışması, küçük taşlar çarpışmasız; tepe yamacı çimen, kuru ot, sıcak toprak geçişi.

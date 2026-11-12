@@ -70,9 +70,16 @@ static func normal_at(x: float, z: float) -> Vector3:
 static func _color_for(x: float, y: float, z: float, n: Vector3) -> Color:
 	var wave: float = 0.5 + 0.5 * sin(x * Config.COLOR_WAVE_FREQ_X + 1.3) * cos(z * Config.COLOR_WAVE_FREQ_Z - 0.7)
 	var col: Color = Palette.GRASS.lerp(Palette.GRASS_DARK, wave * Config.COLOR_WAVE_AMOUNT)
-	var hill: float = smoothstep(Config.HILLTOP_DRY_START, Config.HILLTOP_DRY_END, y / Config.RIM_HEIGHT)
-	col = col.lerp(Palette.DRY_EARTH, hill * Config.HILLTOP_DRY_AMOUNT)
-	var earth: float = 1.0 - smoothstep(Config.EARTH_HEIGHT_LOW, Config.EARTH_HEIGHT_HIGH, y)
-	col = col.lerp(Palette.DRY_EARTH, earth)
+	var t: float = y / Config.RIM_HEIGHT
+	var hwave: float = 0.5 + 0.5 * sin(x * Config.HILL_WAVE_FREQ + 0.6) * sin(z * Config.HILL_WAVE_FREQ * 1.3 + 1.9)
+	# Çimen -> kuru ot -> sıcak toprak/kaya, yükseklikle yumuşak geçiş
+	var dry: float = smoothstep(Config.HILLTOP_DRY_START, Config.HILLTOP_DRY_END, t)
+	col = col.lerp(Palette.DRY_GRASS, dry * Config.HILLTOP_DRY_AMOUNT)
+	var up: float = smoothstep(Config.HILL_EARTH_START, Config.HILL_EARTH_END, t)
+	var earth_col: Color = Palette.HILL_EARTH.lerp(Palette.HILL_EARTH_DARK, hwave * Config.HILL_WAVE_AMOUNT)
+	earth_col = earth_col.lerp(Palette.ROCK, Config.HILL_ROCK_MIX * hwave)
+	col = col.lerp(earth_col, up * Config.HILL_EARTH_AMOUNT)
+	var low: float = 1.0 - smoothstep(Config.EARTH_HEIGHT_LOW, Config.EARTH_HEIGHT_HIGH, y)
+	col = col.lerp(Palette.DRY_EARTH, low)
 	var rock: float = 1.0 - smoothstep(Config.ROCK_NORMAL_Y_LOW, Config.ROCK_NORMAL_Y_HIGH, n.y)
-	return col.lerp(Palette.ROCK.lerp(Palette.ROCK_DARK, wave), rock)
+	return col.lerp(Palette.ROCK.lerp(Palette.HILL_EARTH_DARK, hwave), rock * Config.ROCK_SLOPE_AMOUNT)

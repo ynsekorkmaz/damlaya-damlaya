@@ -94,20 +94,52 @@ func test_terrain_mesh() -> void:
 
 
 func test_rocks() -> void:
-	var a: Array[Transform3D] = RocksBuilder.make_placements()
-	var b: Array[Transform3D] = RocksBuilder.make_placements()
+	var a: Array[Dictionary] = RocksBuilder.make_rocks()
+	var b: Array[Dictionary] = RocksBuilder.make_rocks()
 	check(a.size() == Config.ROCK_COUNT, "kaya sayisi (%d)" % a.size())
-	var same: bool = true
+	var same: bool = a.size() == b.size()
 	var clear: bool = true
+	var big: int = 0
+	var small: int = 0
 	var spawn := Vector2(Config.PLAYER_SPAWN.x, Config.PLAYER_SPAWN.z)
 	for i in range(a.size()):
-		if a[i] != b[i]:
+		if same and (a[i]["transform"] != b[i]["transform"] or a[i]["variant"] != b[i]["variant"]):
 			same = false
-		var p := Vector2(a[i].origin.x, a[i].origin.z)
+		var o: Vector3 = (a[i]["transform"] as Transform3D).origin
+		var p := Vector2(o.x, o.z)
 		if p.length() < Config.PIT_RADIUS or p.distance_to(spawn) < 3.0:
 			clear = false
-	var rock_mesh: ArrayMesh = RocksBuilder.build_rock_mesh()
-	var ri: PackedInt32Array = rock_mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX]
-	check(ri.size() / 3 * Config.ROCK_COUNT < 4000, "kaya ucgen butcesi (%d)" % (ri.size() / 3 * Config.ROCK_COUNT))
+		if a[i]["size"] >= Config.ROCK_BIG_SIZE_MIN:
+			big += 1
+		if a[i]["size"] <= Config.ROCK_SMALL_SIZE_MAX:
+			small += 1
 	check(same, "kaya yerlesimi belirlenimci")
 	check(clear, "kayalar cukura ve dogus noktasina yakin degil")
+	check(big >= 3 and small >= 3, "kaya boy cesitliligi (buyuk %d, kucuk %d)" % [big, small])
+	check(Config.ROCK_VARIANTS <= 3, "en fazla 3 MultiMesh")
+	var tris: int = 0
+	var counts: Array[int] = []
+	counts.resize(Config.ROCK_VARIANTS)
+	counts.fill(0)
+	for r in a:
+		counts[r["variant"]] += 1
+	for v in range(Config.ROCK_VARIANTS):
+		var m: ArrayMesh = RocksBuilder.build_rock_mesh(v)
+		var ri: PackedInt32Array = m.surface_get_arrays(0)[Mesh.ARRAY_INDEX]
+		tris += ri.size() / 3 * counts[v]
+	check(tris <= Config.ROCK_TRI_BUDGET, "kaya ucgen butcesi (%d)" % tris)
+	var root: Node3D = RocksBuilder.build()
+	var mmis: int = 0
+	var shapes: int = 0
+	for c in root.get_children():
+		if c is MultiMeshInstance3D:
+			mmis += 1
+		elif c is StaticBody3D:
+			shapes = c.get_child_count()
+	var expect_col: int = 0
+	for r in a:
+		if r["size"] >= Config.ROCK_COLLIDE_MIN_SIZE:
+			expect_col += 1
+	check(mmis >= 1 and mmis <= 3, "MultiMesh sayisi (%d)" % mmis)
+	check(shapes == expect_col and shapes > 0, "buyuk kayalara carpisma (%d / %d)" % [shapes, expect_col])
+	root.free()

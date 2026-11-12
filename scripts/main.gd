@@ -27,9 +27,28 @@ func _ready() -> void:
 	hud.set_script(preload("res://scripts/ui/debug_hud.gd"))
 	add_child(hud)
 
+	var cam_at := Vector2.INF
+	var look_at := Vector2.INF
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--camera-at="):
+			cam_at = _parse_xz(arg.substr("--camera-at=".length()))
+		elif arg.begins_with("--look-at="):
+			look_at = _parse_xz(arg.substr("--look-at=".length()))
+	if cam_at != Vector2.INF:
+		player.position = Vector3(cam_at.x, TerrainShape.height(cam_at.x, cam_at.y) + Config.SPAWN_LIFT, cam_at.y)
+		if look_at != Vector2.INF:
+			player.rotation.y = atan2(cam_at.x - look_at.x, cam_at.y - look_at.y)
+
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--screenshot="):
 			_capture_and_quit(arg.substr("--screenshot=".length()))
+
+
+func _parse_xz(text: String) -> Vector2:
+	var parts: PackedStringArray = text.split(",")
+	if parts.size() != 2:
+		return Vector2.INF
+	return Vector2(parts[0].to_float(), parts[1].to_float())
 
 
 func _capture_and_quit(path: String) -> void:

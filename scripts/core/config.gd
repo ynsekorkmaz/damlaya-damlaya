@@ -31,14 +31,21 @@ const NORMAL_EPS := 1.7    # normal için merkezi fark aralığı (m)
 # Arazi renkleri
 const EARTH_HEIGHT_LOW := -1.2
 const EARTH_HEIGHT_HIGH := -0.3
-const ROCK_NORMAL_Y_LOW := 0.80
-const ROCK_NORMAL_Y_HIGH := 0.92
-const HILLTOP_DRY_START := 0.35  # RIM_HEIGHT oranı
-const HILLTOP_DRY_END := 0.8
-const HILLTOP_DRY_AMOUNT := 0.6
+const ROCK_NORMAL_Y_LOW := 0.55    # yalnızca gerçekten dik yüzeyler kayalaşır
+const ROCK_NORMAL_Y_HIGH := 0.72
+const ROCK_SLOPE_AMOUNT := 0.7
+const HILLTOP_DRY_START := 0.12    # RIM_HEIGHT oranı: çimen -> kuru ot
+const HILLTOP_DRY_END := 0.5
+const HILLTOP_DRY_AMOUNT := 0.85
+const HILL_EARTH_START := 0.45     # kuru ot -> sıcak toprak/kaya
+const HILL_EARTH_END := 1.0
+const HILL_EARTH_AMOUNT := 0.8
+const HILL_ROCK_MIX := 0.4         # üst yamaçta toprak içine karışan kaya tonu
 const COLOR_WAVE_FREQ_X := 0.045  # geniş, yumuşak çimen tonu dalgası
 const COLOR_WAVE_FREQ_Z := 0.037
 const COLOR_WAVE_AMOUNT := 0.55   # çimen rengi çeşitlemesi (0-1)
+const HILL_WAVE_FREQ := 0.11      # yamaçta ton çeşitlemesi
+const HILL_WAVE_AMOUNT := 0.35
 
 # Oyuncu doğuş noktası (çukura 14 m, çukura bakar); y main.gd'de araziye göre ayarlanır
 const PLAYER_SPAWN := Vector3(0.0, 0.0, 14.0)
@@ -63,19 +70,41 @@ const AMBIENT_ENERGY := 1.15
 const SKY_SUN_ANGLE_MAX := 30.0
 
 # Kayalar
-const ROCK_COUNT := 20
+const ROCK_COUNT := 40             # toplam kaya (büyük, orta ve küçük taşlar)
 const ROCK_SEED := 7
-const ROCK_SCALE_MIN := Vector3(0.8, 0.6, 0.8)
-const ROCK_SCALE_MAX := Vector3(2.6, 1.8, 2.6)
-const ROCK_RINGS := 8              # dilim sayısı (enlem)
-const ROCK_SEGMENTS := 12          # boylam dilimi
-const ROCK_BUMP := 0.10            # yüzey dalgalanma oranı (yumuşak)
-const ROCK_BUMP_FREQ := 3.1
-const ROCK_SINK := 0.35            # kayanın zemine gömülme miktarı
+const ROCK_VARIANTS := 3           # ayrı biçim = ayrı MultiMesh
+const ROCK_RINGS := 7              # dilim sayısı (enlem)
+const ROCK_SEGMENTS := 11          # boylam dilimi
+const ROCK_TRI_BUDGET := 6000      # tüm kayaların üçgen üst sınırı
+const ROCK_BUMP := 0.16            # düşük frekanslı biçim bozulması (yarıçap oranı)
+const ROCK_BUMP_FREQ := 2.3
+const ROCK_BUMP_FREQ_2 := 4.1
+const ROCK_BUMP_2 := 0.45          # ikinci sinüs katmanının payı
+const ROCK_BASE_FLAT := 0.30       # alt yarının yassılması (0 = küre)
+const ROCK_SINK_FRAC := 0.12       # yüksekliğin bu oranı kadar yere gömülür
+const ROCK_TILT_MAX := 0.18        # radyan, hafif eğiklik
+const ROCK_CLUSTER_COUNT := 9      # kümelerin ana (büyük) kayaları
+const ROCK_BIG_SIZE_MIN := 1.5     # m, ana kaya genişliği
+const ROCK_BIG_SIZE_MAX := 2.5
+const ROCK_MID_SIZE_MIN := 0.7
+const ROCK_MID_SIZE_MAX := 1.2
+const ROCK_SMALL_SIZE_MIN := 0.25
+const ROCK_SMALL_SIZE_MAX := 0.55
+const ROCK_MID_CHANCE := 0.3       # serpilmiş tek kayada orta boy olasılığı
+const ROCK_AXIS_MIN := 0.75        # eksen ölçeği çarpanı (genişlik)
+const ROCK_AXIS_MAX := 1.25
+const ROCK_HEIGHT_MIN := 0.8      # yükseklik / genişlik
+const ROCK_HEIGHT_MAX := 1.1
+const ROCK_SAT_MIN := 1             # kümedeki uydu kaya sayısı
+const ROCK_SAT_MAX := 2
+const ROCK_SAT_DIST_MIN := 0.9     # uydunun ana kayaya uzaklığı (ana yarıçapının katı)
+const ROCK_SAT_DIST_MAX := 1.5
+const ROCK_COLLIDE_MIN_SIZE := 1.0 # bu genişlik ve üstü çarpışır
+const ROCK_COLLIDE_FRAC := 0.85    # çarpışma küresi / görünür yarıçap
 const ROCK_PIT_CLEARANCE := 4.0    # çukur kenarından uzaklık
 const ROCK_RIM_CLEARANCE := 6.0    # vadi sınırından içeri uzaklık
 const ROCK_SPAWN_CLEARANCE := 4.0  # doğuş noktasından uzaklık (en az 3 m)
-const ROCK_MAX_TRIES := 200
+const ROCK_MAX_TRIES := 400
 
 # Ölçüm
 const SCREENSHOT_WAIT_FRAMES := 120

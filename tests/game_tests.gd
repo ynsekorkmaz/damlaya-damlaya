@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Cfg = preload("res://scripts/core/economy_config.gd")
+const InputSetup = preload("res://scripts/core/input_setup.gd")
 const GameScript = preload("res://scripts/game/game.gd")
 
 var _failures: int = 0
@@ -50,6 +51,10 @@ func _init() -> void:
 	g._process(0.016)
 	check(_stages == [1], "ayni asama tekrar yayilmaz")
 	g.free()
+	InputSetup.register()
+	check(InputMap.has_action("interact") and InputMap.has_action("pour"), "interact ve pour eylemleri kayitli")
+	check(_has_mouse("interact", MOUSE_BUTTON_LEFT) and not _has_mouse("interact", MOUSE_BUTTON_RIGHT), "interact sol tik")
+	check(_has_mouse("pour", MOUSE_BUTTON_RIGHT) and not _has_mouse("pour", MOUSE_BUTTON_LEFT), "pour sag tik")
 	print("Kontrol: %d, basarisiz: %d" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -59,3 +64,10 @@ func check(cond: bool, msg: String) -> void:
 	if not cond:
 		_failures += 1
 		print("BASARISIZ: ", msg)
+
+
+func _has_mouse(action: String, button: int) -> bool:
+	for e in InputMap.action_get_events(action):
+		if e is InputEventMouseButton and (e as InputEventMouseButton).button_index == button:
+			return true
+	return false

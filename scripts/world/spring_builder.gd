@@ -1,6 +1,6 @@
 extends RefCounted
-## Su kaynağı: koddan üretilmiş yumuşak gölgeli kaya kütlesi (çarpışmalı), üstünde koyu çatlak,
-## çatlaktan süzülen ince su şeridi ve dibinde ıslak birikinti.
+## Su kaynağı: iç içe geçmiş 3 yassı kaya kütlesi (çarpışmalı), ön iki kütle arasında geometriyle
+## çökük yarık, yarıktan süzülen ince su şeridi ve dipte küçük, yumuşak kenarlı birikinti.
 
 const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
@@ -20,7 +20,7 @@ void fragment() {
 	float side = smoothstep(0.0, 0.3, UV.x) * smoothstep(1.0, 0.7, UV.x);
 	ALBEDO = mix(dark_color.rgb, light_color.rgb, s);
 	ROUGHNESS = 0.15;
-	ALPHA = side * (0.55 + 0.4 * s);
+	ALPHA = side * (0.5 + 0.4 * s);
 }
 """
 
@@ -42,26 +42,49 @@ static func yaw() -> float:
 	return atan2(s.x - o.x, s.z - o.z)
 
 
-## Yüzey noktası: a açı (0 = +Z), t yükseklik oranı 0..1.
-static func surface_point(a: float, t: float) -> Vector3:
-	var taper: float = (1.0 - Config.SPRING_TAPER * t) * sqrt(maxf(1.0 - pow(t, Config.SPRING_TOP_POWER), 0.0))
+static func blob_count() -> int:
+	return Config.SPRING_BLOBS.size()
+
+
+static func blob_center(i: int) -> Vector3:
+	return Config.SPRING_BLOBS[i]["center"]
+
+
+static func blob_radii(i: int) -> Vector3:
+	return Config.SPRING_BLOBS[i]["radii"]
+
+
+## i. kütlenin yüzey noktası: dir birim yön. Yassı, alt yarıda etekli, düşük frekanslı bozulmalı.
+static func blob_point(i: int, dir: Vector3) -> Vector3:
+	var ph: float = float(i) * 1.9
 	var bump: float = 1.0 + Config.SPRING_BUMP * (
-		0.55 * sin(3.0 * a + 4.0 * t + 0.7)
-		+ 0.30 * sin(5.0 * a - 7.0 * t + 2.1)
-		+ 0.15 * sin(2.0 * a + 11.0 * t))
-	var r: float = Config.SPRING_RADIUS * taper * bump
-	return Vector3(r * sin(a) * 1.1, Config.SPRING_HEIGHT * t, r * cos(a) * 0.92)
+		0.55 * sin(2.6 * dir.x + 1.7 * dir.z + ph + 0.7)
+		+ 0.30 * sin(4.1 * dir.y - 3.3 * dir.x + ph + 2.1)
+		+ 0.15 * sin(6.0 * dir.z + 2.0 * dir.y + ph))
+	var skirt: float = 1.0 + Config.SPRING_SKIRT * clampf(-dir.y, 0.0, 1.0)
+	var shaped := Vector3(dir.x * skirt, dir.y, dir.z * skirt)
+	return blob_center(i) + shaped * blob_radii(i) * bump
 
 
-static func _outward_normal(a: float, t: float) -> Vector3:
-	var e: float = 0.01
-	var da: Vector3 = surface_point(a + e, t) - surface_point(a - e, t)
-	var dt: Vector3 = surface_point(a, minf(t + e, 0.999)) - surface_point(a, maxf(t - e, 0.0))
-	var n: Vector3 = dt.cross(da).normalized()
-	var p: Vector3 = surface_point(a, t)
-	if n.dot(Vector3(p.x, 0.0, p.z)) < 0.0:
-		n = -n
-	return n
+## Nokta herhangi bir kütlenin içinde mi (yaklaşık).
+static func _inside(p: Vector3) -> bool:
+	for i in range(blob_count()):
+		var d: Vector3 = p - blob_center(i)
+		var q: Vector3 = d / blob_radii(i)
+		if q.length() < 0.0001:
+			return true
+		var sp: Vector3 = blob_point(i, q.normalized()) - blob_center(i)
+		if d.length() <= sp.length():
+			return true
+	return false
+
+
+## x = 0 düzleminde, y yüksekliğinde ön yüzeyin z'si (yarığın tabanı).
+static func front_z(y: float) -> float:
+	var z: float = 2.5
+	while z > -2.0 and not _inside(Vector3(0.0, y, z)):
+		z -= 0.02
+	return z
 
 
 static func build() -> Node3D:
@@ -72,19 +95,16 @@ static func build() -> Node3D:
 
 	var body := StaticBody3D.new()
 	body.name = "SpringRock"
-	var rock_mesh: ArrayMesh = build_rock_mesh()
 	var mi := MeshInstance3D.new()
-	mi.mesh = rock_mesh
+	mi.mesh = build_rock_mesh()
 	body.add_child(mi)
-	var cs := CollisionShape3D.new()
-	cs.shape = rock_mesh.create_convex_shape()
-	body.add_child(cs)
+	for i in range(blob_count()):
+		var cs := CollisionShape3D.new()
+		var shape := ConvexPolygonShape3D.new()
+		shape.points = _blob(i)["verts"]
+		cs.shape = shape
+		body.add_child(cs)
 	root.add_child(body)
-
-	var crack := MeshInstance3D.new()
-	crack.name = "Crack"
-	crack.mesh = _build_crack()
-	root.add_child(crack)
 
 	var stream := MeshInstance3D.new()
 	stream.name = "Stream"
@@ -98,37 +118,70 @@ static func build() -> Node3D:
 	return root
 
 
-## Dış yüzü saat yönünde sarılı, yumuşak gölgeli kaya. Alt kutup tabanı kapatır.
+static func tris_per_blob() -> int:
+	return 2 * Config.SPRING_SEGMENTS * (Config.SPRING_RINGS - 1)
+
+
+## Üç kütle tek yüzeyde (kütle sırasıyla art arda). Dış yüzü saat yönünde sarılı.
 static func build_rock_mesh() -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	var idx := PackedInt32Array()
+	for i in range(blob_count()):
+		var blob: Dictionary = _blob(i)
+		var base: int = verts.size()
+		verts.append_array(blob["verts"])
+		normals.append_array(blob["normals"])
+		colors.append_array(blob["colors"])
+		for k: int in blob["indices"]:
+			idx.append(base + k)
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 1.0
+	mesh.surface_set_material(0, mat)
+	return mesh
+
+
+static func _blob(i: int) -> Dictionary:
 	var rings: int = Config.SPRING_RINGS
 	var segs: int = Config.SPRING_SEGMENTS
 	var verts := PackedVector3Array()
-	verts.append(Vector3.ZERO)  # alt kutup
-	for i in range(rings):
-		var t: float = float(i) / float(rings)
+	verts.append(blob_point(i, Vector3.UP))
+	for r in range(1, rings):
+		var phi: float = PI * float(r) / float(rings)
 		for j in range(segs):
-			verts.append(surface_point(TAU * float(j) / float(segs), t))
-	verts.append(Vector3(0.0, Config.SPRING_HEIGHT, 0.0))  # üst kutup
-	var top: int = verts.size() - 1
-	var center := Vector3(0.0, Config.SPRING_HEIGHT * 0.5, 0.0)
+			var th: float = TAU * float(j) / float(segs)
+			verts.append(blob_point(i, Vector3(sin(phi) * cos(th), cos(phi), sin(phi) * sin(th))))
+	verts.append(blob_point(i, Vector3.DOWN))
+	var bottom: int = verts.size() - 1
+	var center: Vector3 = blob_center(i)
 
 	var tris: Array[int] = []
 	for j in range(segs):
 		var j2: int = (j + 1) % segs
 		_add_tri(tris, verts, center, 0, 1 + j, 1 + j2)
-	for i in range(rings - 1):
+	for r in range(rings - 2):
 		for j in range(segs):
 			var j2: int = (j + 1) % segs
-			var a: int = 1 + i * segs + j
-			var b: int = 1 + i * segs + j2
-			var c: int = 1 + (i + 1) * segs + j
-			var d: int = 1 + (i + 1) * segs + j2
+			var a: int = 1 + r * segs + j
+			var b: int = 1 + r * segs + j2
+			var c: int = 1 + (r + 1) * segs + j
+			var d: int = 1 + (r + 1) * segs + j2
 			_add_tri(tris, verts, center, a, b, d)
 			_add_tri(tris, verts, center, a, d, c)
-	var last: int = 1 + (rings - 1) * segs
+	var last: int = 1 + (rings - 2) * segs
 	for j in range(segs):
 		var j2: int = (j + 1) % segs
-		_add_tri(tris, verts, center, last + j, last + j2, top)
+		_add_tri(tris, verts, center, last + j, last + j2, bottom)
 
 	var normals := PackedVector3Array()
 	normals.resize(verts.size())
@@ -139,25 +192,25 @@ static func build_rock_mesh() -> ArrayMesh:
 	var colors := PackedColorArray()
 	for k in range(verts.size()):
 		normals[k] = normals[k].normalized() if normals[k].length() > 0.0 else Vector3.UP
-		var v: Vector3 = verts[k]
-		var h: float = v.y / Config.SPRING_HEIGHT
-		var wave: float = 0.5 + 0.5 * sin(v.x * 2.3 + v.z * 1.7 + v.y * 3.1)
-		var col: Color = Palette.SPRING_ROCK_DARK.lerp(Palette.SPRING_ROCK, clampf(h * 1.4, 0.0, 1.0))
-		colors.append(col.lerp(Palette.ROCK_LIGHT, wave * 0.25 * h))
+		colors.append(_vertex_color(i, verts[k], normals[k]))
+	return {"verts": verts, "normals": normals, "colors": colors, "indices": PackedInt32Array(tris)}
 
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_COLOR] = colors
-	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array(tris)
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 1.0
-	mesh.surface_set_material(0, mat)
-	return mesh
+
+## Sıcak gri/krem; komşu kütleye yakın (yarık içi) yüzeyler yumuşak koyu tona iner.
+static func _vertex_color(i: int, v: Vector3, n: Vector3) -> Color:
+	var h: float = clampf(v.y / Config.SPRING_HEIGHT, 0.0, 1.0)
+	var wave: float = 0.5 + 0.5 * sin(v.x * 2.3 + v.z * 1.7 + v.y * 3.1)
+	var col: Color = Palette.SPRING_ROCK_DARK.lerp(Palette.SPRING_ROCK, clampf(h * 1.6, 0.0, 1.0))
+	col = col.lerp(Palette.ROCK_LIGHT, wave * 0.25 * h + 0.25 * clampf(n.y, 0.0, 1.0) * h)
+	var occ: float = 0.0
+	for j in range(blob_count()):
+		if j == i:
+			continue
+		var q: Vector3 = (v - blob_center(j)) / blob_radii(j)
+		var d: float = (q.length() - 1.0) * minf(blob_radii(j).x, blob_radii(j).y)
+		occ = maxf(occ, clampf(1.0 - d / Config.SPRING_AO_DIST, 0.0, 1.0))
+	occ *= smoothstep(0.1, 0.9, v.y)  # tabanda kararma yok, yarık yukarıda derinleşir
+	return col.lerp(Palette.CREVICE, occ * Config.SPRING_AO_AMOUNT)
 
 
 ## Üçgeni dışa bakacak (Godot: ön yüz saat yönü) biçimde ekler.
@@ -170,32 +223,6 @@ static func _add_tri(tris: Array[int], verts: PackedVector3Array, center: Vector
 		tris.append_array([a, c, b])
 
 
-static func _build_crack() -> ArrayMesh:
-	var rows: int = Config.SPRING_STREAM_ROWS
-	var verts := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var idx := PackedInt32Array()
-	for i in range(rows + 1):
-		var s: float = float(i) / float(rows)
-		var t: float = lerpf(Config.SPRING_CRACK_BOTTOM, Config.SPRING_CRACK_TOP, s)
-		var half: float = Config.SPRING_CRACK_WIDTH * 0.5 * pow(sin(PI * s), 0.6)
-		var n: Vector3 = _outward_normal(0.0, t)
-		var sway: float = 0.05 * sin(s * 9.0)
-		var rad: float = surface_point(0.0, t).z
-		for side in [-1.0, 1.0]:
-			var a: float = (sway + side * half) / maxf(rad, 0.1)
-			verts.append(surface_point(a, t) + n * Config.SPRING_SURFACE_OFFSET)
-			normals.append(n)
-	for i in range(rows):
-		var k: int = i * 2
-		idx.append_array([k, k + 1, k + 3, k, k + 3, k + 2])
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Palette.CRACK
-	mat.roughness = 1.0
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return _mesh_from(verts, normals, PackedVector2Array(), PackedColorArray(), idx, mat)
-
-
 static func _build_stream() -> ArrayMesh:
 	var rows: int = Config.SPRING_STREAM_ROWS
 	var verts := PackedVector3Array()
@@ -206,18 +233,22 @@ static func _build_stream() -> ArrayMesh:
 	var prev := Vector3.ZERO
 	for i in range(rows + 1):
 		var s: float = float(i) / float(rows)
-		var t: float = lerpf(Config.SPRING_CRACK_BOTTOM, Config.SPRING_STREAM_BOTTOM, s)
-		var n: Vector3 = _outward_normal(0.0, t)
-		var rad: float = surface_point(0.0, t).z
-		var mid: Vector3 = surface_point(0.0, t) + n * Config.SPRING_SURFACE_OFFSET * 2.0
+		var y: float = lerpf(Config.SPRING_STREAM_TOP, Config.SPRING_STREAM_BOTTOM, s)
+		var z: float = front_z(y) + Config.SPRING_STREAM_OFFSET
+		var dz: float = front_z(y - 0.05) - front_z(y + 0.05)
+		var n := Vector3(0.0, dz / 0.1, 1.0).normalized()
+		var sway: float = 0.035 * sin(s * 7.0) * (1.0 - s)
+		var half: float = Config.SPRING_STREAM_WIDTH * 0.5 * (1.0 + 0.8 * s)
+		var mid := Vector3(sway, y, z)
 		if i > 0:
 			length += mid.distance_to(prev)
 		prev = mid
-		for side in [-1.0, 1.0]:
-			var a: float = side * Config.SPRING_STREAM_WIDTH * 0.5 / maxf(rad, 0.1)
-			verts.append(surface_point(a, t) + n * Config.SPRING_SURFACE_OFFSET * 2.0)
-			normals.append(n)
-			uvs.append(Vector2(0.0 if side < 0.0 else 1.0, length))
+		verts.append(Vector3(sway - half, y, z))
+		verts.append(Vector3(sway + half, y, z))
+		normals.append(n)
+		normals.append(n)
+		uvs.append(Vector2(0.0, length))
+		uvs.append(Vector2(1.0, length))
 	for i in range(rows):
 		var k: int = i * 2
 		idx.append_array([k, k + 1, k + 3, k, k + 3, k + 2])
@@ -232,16 +263,17 @@ static func _build_stream() -> ArrayMesh:
 	return _mesh_from(verts, normals, uvs, PackedColorArray(), idx, mat)
 
 
-## Dipteki ıslak birikinti: merkez su, kenara doğru ıslak toprak ve şeffaflaşma.
+## Dipteki küçük birikinti: su, kenara doğru yumuşakça ıslak toprağa ve şeffaflığa iner (sert hâle yok).
 static func _build_puddle(root_pos: Vector3, root_yaw: float) -> ArrayMesh:
 	var segs: int = Config.SPRING_PUDDLE_SEGMENTS
 	var basis := Basis(Vector3.UP, root_yaw)
-	var center := Vector3(0.0, 0.0, surface_point(0.0, 0.0).z + Config.SPRING_PUDDLE_RADIUS * 0.45)
-	var ring_scale: Array[float] = [0.0, 0.55, 1.0, 1.4]
+	var center := Vector3(0.0, 0.0, front_z(0.0) + Config.SPRING_PUDDLE_RADIUS * 0.55)
+	var ring_scale: Array[float] = [0.0, 0.45, 0.85, 1.0, 1.2]
 	var ring_color: Array[Color] = [
+		Color(Palette.WATER, 0.88),
 		Color(Palette.WATER, 0.85),
-		Color(Palette.WATER_DEEP, 0.8),
-		Color(Palette.WET_EARTH, 0.6),
+		Color(Palette.WATER.lerp(Palette.WET_EARTH, 0.4), 0.55),
+		Color(Palette.WET_EARTH, 0.2),
 		Color(Palette.WET_EARTH, 0.0),
 	]
 	var verts := PackedVector3Array()
@@ -252,7 +284,9 @@ static func _build_puddle(root_pos: Vector3, root_yaw: float) -> ArrayMesh:
 		var count: int = 1 if ri == 0 else segs
 		for j in range(count):
 			var ang: float = TAU * float(j) / float(segs)
-			var rr: float = Config.SPRING_PUDDLE_RADIUS * ring_scale[ri]
+			# Kenar hafif düzensiz: doğal görünsün
+			var wobble: float = 1.0 + 0.12 * sin(3.0 * ang + 0.5) + 0.07 * sin(5.0 * ang + 2.0)
+			var rr: float = Config.SPRING_PUDDLE_RADIUS * ring_scale[ri] * wobble
 			var local := center + Vector3(cos(ang) * rr * 1.2, 0.0, sin(ang) * rr * 0.9)
 			var world: Vector3 = root_pos + basis * local
 			local.y = TerrainShape.height(world.x, world.z) + Config.SPRING_PUDDLE_LIFT - root_pos.y
@@ -272,7 +306,7 @@ static func _build_puddle(root_pos: Vector3, root_yaw: float) -> ArrayMesh:
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.roughness = 0.35
+	mat.roughness = 0.3
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return _mesh_from(verts, normals, PackedVector2Array(), colors, idx, mat)
 

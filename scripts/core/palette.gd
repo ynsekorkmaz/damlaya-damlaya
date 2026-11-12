@@ -24,6 +24,7 @@ const WATER_STREAM := Color(0.62, 0.84, 0.95)
 const WATER_STREAM_DARK := Color(0.36, 0.64, 0.82)
 const WET_EARTH := Color(0.30, 0.24, 0.17)
 const CRACK := Color(0.10, 0.08, 0.07)
+const CREVICE := Color(0.27, 0.21, 0.17)  # yarık içi: koyu ama düz siyah değil
 const SPRING_ROCK := Color(0.66, 0.60, 0.52)
 const SPRING_ROCK_DARK := Color(0.50, 0.43, 0.35)
 const CLAY := Color(0.72, 0.45, 0.30)

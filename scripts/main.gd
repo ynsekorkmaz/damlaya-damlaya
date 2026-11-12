@@ -9,13 +9,15 @@ const TerrainBuilder = preload("res://scripts/world/terrain_builder.gd")
 const RocksBuilder = preload("res://scripts/world/rocks_builder.gd")
 const SpringBuilder = preload("res://scripts/world/spring_builder.gd")
 const Economy = preload("res://scripts/core/economy.gd")
+const BasinShape = preload("res://scripts/core/basin_shape.gd")
 const GameState = preload("res://scripts/core/game_state.gd")
 
 
 func _ready() -> void:
 	InputSetup.register()
 	add_child(SkyBuilder.build())
-	add_child(TerrainBuilder.build())
+	var terrain: Node3D = TerrainBuilder.build()
+	add_child(terrain)
 	add_child(RocksBuilder.build())
 	add_child(SpringBuilder.build())
 
@@ -74,8 +76,11 @@ func _ready() -> void:
 			st.total_drops = arg.substr("--debug-drops=".length()).to_float()
 		elif arg.begins_with("--debug-carried="):
 			st.carried = minf(arg.substr("--debug-carried=".length()).to_float(), Economy.tool_capacity(st))
+	var basin_r: float = BasinShape.radius(st.total_drops)
+	var basin_d: float = BasinShape.depth(st.total_drops)
+	(terrain.get_node("Patch") as Node).call("bind", game)
 	if cam_at != Vector2.INF:
-		player.position = Vector3(cam_at.x, TerrainShape.height(cam_at.x, cam_at.y) + Config.SPAWN_LIFT, cam_at.y)
+		player.position = Vector3(cam_at.x, TerrainShape.height(cam_at.x, cam_at.y, basin_r, basin_d) + Config.SPAWN_LIFT, cam_at.y)
 		if look_at != Vector2.INF:
 			player.rotation.y = atan2(cam_at.x - look_at.x, cam_at.y - look_at.y)
 	if pitch_deg != 0.0:

@@ -5,9 +5,17 @@ extends RefCounted
 const VALLEY_RADIUS := 55.0
 const RIM_HEIGHT := 9.0
 const RIM_WIDTH := 18.0
-const PIT_RADIUS := 16.0
-const PIT_DEPTH := 3.5
-const PIT_SHAPE := 0.6  # gauss genişliği: exp(-r^2 / (PIT_RADIUS^2 * PIT_SHAPE))
+
+# Çanak (çukur -> göl): aşama eşiklerine göre hedef yarıçap ve derinlik (m).
+# Anahtarlar: Aşama eşikleri + GAME_END_DROPS (economy_config.gd); aralar log(1+toplam) üzerinden yumuşak.
+const BASIN_RADII: Array[float] = [0.7, 1.6, 4.0, 9.0, 16.0, 19.0]
+const BASIN_DEPTHS: Array[float] = [0.25, 0.5, 1.1, 2.2, 3.5, 4.0]
+const BASIN_FLAT_START := 0.7        # çanak içinde zemin dalgaları sönümlenir (yarıçap oranı)
+const BASIN_FLAT_END := 1.15
+const BASIN_FLAT_KEEP := 0.15        # çanak içinde kalan dalga payı
+const BASIN_SMOOTH := 0.5            # 0 = log üzerinde doğrusal, 1 = tam smoothstep
+const BASIN_REBUILD_DELTA := 0.03    # yama, yarıçap bu kadar (m) değişince yeniden kurulur
+const POUR_MARGIN := 2.5             # çanak kıyısından bu kadar yakında dökülebilir (m)
 
 # Hafif dalgalı zemin (genlikler toplamı 1 m'nin altında)
 const WAVE_AMP_A := 0.35
@@ -25,7 +33,13 @@ const CALM_FAR := 32.0     # bu yarıçapta dalga tam güçte
 
 # Arazi ağı
 const TERRAIN_SIZE := 170.0
-const TERRAIN_CELLS := 100  # hücre ~1,7 m, 20.000 üçgen
+const TERRAIN_CELLS := 100  # hücre ~1,7 m; ortadaki kısım çanak yamasıyla değiştirilir
+# Çanak yaması: merkezde, kutupsal ızgara, hücre kenarı ortada ~0,3 m, kıyıda ~1,4 m
+const PATCH_RADIUS := 24.0
+const PATCH_CELL_MIN := 0.3
+const PATCH_CELL_GROWTH := 0.045     # yarıçap başına hücre büyümesi
+const PATCH_SEAM_MARGIN := 2.5       # dış arazi hücreleri, bu kadar içeriden kesilir
+const PATCH_VERTS_PER_FRAME := 600   # yeniden kurma kareye bölünür
 const NORMAL_EPS := 1.7    # normal için merkezi fark aralığı (m)
 
 # Arazi renkleri
@@ -47,6 +61,23 @@ const COLOR_WAVE_AMOUNT := 0.55   # çimen rengi çeşitlemesi (0-1)
 const HILL_WAVE_FREQ := 0.11      # yamaçta ton çeşitlemesi
 const HILL_WAVE_AMOUNT := 0.35
 
+# Arazi dokusu (assets/shaders/terrain.gdshader); vertex rengi = karışım ağırlığı
+const TERRAIN_SHADER_PATH := "res://assets/shaders/terrain.gdshader"
+const TERRAIN_TEX_GRASS := "res://assets/textures/terrain/grass.jpg"
+const TERRAIN_TEX_SOIL := "res://assets/textures/terrain/soil.jpg"
+const TERRAIN_TEX_ROCK := "res://assets/textures/terrain/rock.jpg"
+const TERRAIN_TILE_NEAR := 3.0      # m, yakın ölçekte bir döşeme
+const TERRAIN_TILE_FAR := 13.0      # m, uzak (döndürülmüş) ölçek
+const TERRAIN_FAR_MIX_MIN := 0.3    # uzak ölçeğin yakındaki payı
+const TERRAIN_FAR_MIX_MAX := 0.65   # uzaktaki payı
+const TERRAIN_FAR_DIST_START := 8.0
+const TERRAIN_FAR_DIST_END := 60.0
+const TERRAIN_TINT_STRENGTH := 0.6  # palet renginin dokuya karışma payı (0 = ham doku)
+const TERRAIN_GRASS_GAIN := 2.5     # palet renginin çarpanı (dokular palete göre koyu)
+const TERRAIN_DRY_GAIN := 1.9
+const TERRAIN_SOIL_GAIN := 1.7
+const TERRAIN_ROCK_GAIN := 1.9
+
 # Oyuncu doğuş noktası (çukur ve kaynak birlikte görünür); y main.gd'de araziye göre ayarlanır
 const PLAYER_SPAWN := Vector3(5.0, 0.0, 36.0)
 const SPAWN_LOOK_AT := Vector2(-3.0, 12.0)  # doğuşta bakılan yer (x, z)
@@ -65,10 +96,11 @@ const EYE_HEIGHT := 1.55
 const PITCH_LIMIT_DEG := 85.0
 
 # Gökyüzü ve ışık
-const SUN_ROTATION_DEG := Vector3(-48.0, -35.0, 0.0)
+const SKY_HDRI_PATH := "res://assets/sky/sky_day.hdr"
+const SKY_HDRI_ENERGY := 1.4        # gökyüzü görüntüsü parlaklığı
+const SKY_SUN_DIR := Vector3(0.3046, 0.8542, -0.4208)  # HDRI'de güneşe bakan yön (birim): yükseklik 58,7 derece
 const SUN_ENERGY := 0.95
 const AMBIENT_ENERGY := 1.15
-const SKY_SUN_ANGLE_MAX := 30.0
 
 # Kayalar
 const ROCK_COUNT := 40             # toplam kaya (büyük, orta ve küçük taşlar)
@@ -102,52 +134,57 @@ const ROCK_SAT_DIST_MIN := 0.9     # uydunun ana kayaya uzaklığı (ana yarıç
 const ROCK_SAT_DIST_MAX := 1.5
 const ROCK_COLLIDE_MIN_SIZE := 1.0 # bu genişlik ve üstü çarpışır
 const ROCK_COLLIDE_FRAC := 0.85    # çarpışma küresi / görünür yarıçap
-const ROCK_PIT_CLEARANCE := 4.0    # çukur kenarından uzaklık
+const ROCK_PIT_CLEARANCE := 4.0    # en büyük çanak yarıçapından uzaklık
 const ROCK_RIM_CLEARANCE := 6.0    # vadi sınırından içeri uzaklık
 const ROCK_SPAWN_CLEARANCE := 4.0  # doğuş noktasından uzaklık (en az 3 m)
 const ROCK_MAX_TRIES := 400
 
-# Su kaynağı (kaya kütlesi, çatlak, süzülen su, birikinti); y araziden alınır
+# Su kaynağı: iç içe 3 yassı kaya kütlesi, aralarında yarık, süzülen su, dipte birikinti; y araziden alınır
 const SPRING_POSITION := Vector3(-9.0, 0.0, 26.0)
-const SPRING_HEIGHT := 2.5
-const SPRING_RADIUS := 1.35          # taban yarıçapı (m)
-const SPRING_TAPER := 0.22        # tepeye doğru daralma
-const SPRING_TOP_POWER := 2.4        # tepe yuvarlaklığı (büyük = yassı tepe)
-const SPRING_RINGS := 14
-const SPRING_SEGMENTS := 22
-const SPRING_BUMP := 0.13            # yüzey bozulması (yarıçap oranı)
+const SPRING_HEIGHT := 2.2
+const SPRING_RADIUS := 1.9           # etkileşim için yaklaşık taban yarıçapı (m)
+# Kütleler yerel uzayda (+Z doğuş noktasına bakar): merkez, yarıçaplar
+const SPRING_BLOBS: Array[Dictionary] = [
+	{"center": Vector3(-1.05, 0.75, 0.05), "radii": Vector3(1.05, 1.45, 1.0)},
+	{"center": Vector3(1.0, 0.5, 0.15), "radii": Vector3(0.98, 1.2, 0.95)},
+	{"center": Vector3(0.0, 0.55, -0.85), "radii": Vector3(1.35, 1.3, 1.1)},
+]
+const SPRING_RINGS := 12
+const SPRING_SEGMENTS := 20
+const SPRING_BUMP := 0.12            # yüzey bozulması (yarıçap oranı)
+const SPRING_SKIRT := 0.4           # alt yarıda yanlara taşma (yassı etek)
 const SPRING_SINK := 0.25            # araziye gömülme (m)
-const SPRING_CRACK_TOP := 0.80       # çatlağın üst ucu (yüksekliğin oranı)
-const SPRING_CRACK_BOTTOM := 0.60
-const SPRING_CRACK_WIDTH := 0.16     # m
+const SPRING_AO_DIST := 0.7          # komşu kütleye bu kadar yakın yüzey kararır (m)
+const SPRING_AO_AMOUNT := 0.85
+const SPRING_STREAM_TOP := 1.55      # süzülen suyun başladığı yükseklik
 const SPRING_STREAM_WIDTH := 0.1     # m
-const SPRING_STREAM_BOTTOM := 0.04
-const SPRING_SURFACE_OFFSET := 0.025 # çatlak ve şeridin yüzeyden çıkıntısı (m)
-const SPRING_STREAM_ROWS := 10
+const SPRING_STREAM_BOTTOM := 0.03
+const SPRING_STREAM_ROWS := 14
+const SPRING_STREAM_OFFSET := 0.04   # yüzeyden çıkıntı (m)
 const SPRING_PUDDLE_RADIUS := 0.6
 const SPRING_PUDDLE_SEGMENTS := 20
-const SPRING_PUDDLE_LIFT := 0.035
-const SPRING_STREAM_SCROLL := 3.0    # süzülme hızı
+const SPRING_PUDDLE_LIFT := 0.03
+const SPRING_STREAM_SCROLL := 2.0    # süzülme hızı
 const SPRING_STREAM_WAVELENGTH := 0.45  # m
 
 # Etkileşim
 const FILL_REACH := 3.0              # kaya yüzeyinden en çok uzaklık (m)
 const FILL_LOOK_COS := 0.82          # kaynağa bakış (kamera yönü ile hedef arası kosinüs)
 const FILL_TARGET_HEIGHT := 1.4      # bakılan noktanın kaynağın tabanından yüksekliği (m)
-const POUR_ZONE_RADIUS := 19.0       # çukur merkezinden bu uzaklığa kadar dökülebilir
+const HINT_BRING_SECONDS := 2.0      # uzakta sağ tıkta "Suyu çukura götür." süresi
 const GUIDE_DROPS_LIMIT := 30.0      # bu kadar damlaya dek yönlendirme ipucu
 
 # Göl
-const LAKE_TOP_LEVEL := -0.75        # su seviyesi üst sınırı (çanağın ağzına yakın)
+const LAKE_FREEBOARD := 0.15          # su yüzeyi çanak ağzının bu kadar altında kalır (m)
 const LAKE_PUDDLE_THICKNESS := 0.04  # ilk damlanın dipteki kalınlığı
+const LAKE_RAMP_DROPS := 100.0       # su bu toplamda tam seviyeye ulaşır (log ölçeği)
+const LAKE_SHORE_INTERVAL := 0.2     # kıyı hesabı en sık bu aralıkla (sn)
 const LAKE_LEVEL_SPEED := 1.4        # seviyenin hedefe yaklaşma hızı (1/sn)
 const LAKE_SEGMENTS := 56
 const LAKE_RINGS := 8
 const LAKE_RADIUS_MARGIN := 0.6      # kıyı yarıçapına eklenen pay (arazi altında kalır)
-const LAKE_TABLE_STEPS := 48
 const LAKE_RAYS := 24
-const LAKE_RAY_STEP := 0.2
-const LAKE_RAY_MAX := 30.0
+const LAKE_RAY_STEPS := 48
 const LAKE_WAVE_AMP_1 := 0.035
 const LAKE_WAVE_AMP_2 := 0.025
 const LAKE_WAVE_FREQ_1 := 0.9

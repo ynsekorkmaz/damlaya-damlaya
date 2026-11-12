@@ -3,11 +3,13 @@ extends Node
 
 const Config = preload("res://scripts/core/config.gd")
 const Economy = preload("res://scripts/core/economy.gd")
+const BasinShape = preload("res://scripts/core/basin_shape.gd")
 const SpringBuilder = preload("res://scripts/world/spring_builder.gd")
 
 const PROMPT_FILL: String = "Sol tıkı basılı tut: su doldur"
 const PROMPT_FULL: String = "Elin dolu. Çukura götür."
-const PROMPT_POUR: String = "Sol tık: suyu dök"
+const PROMPT_POUR: String = "Sağ tık: suyu dök"
+const PROMPT_BRING: String = "Suyu çukura götür."
 const PROMPT_GUIDE: String = "Kayadaki kaynaktan su al."
 
 var game: Node
@@ -15,6 +17,7 @@ var player: CharacterBody3D
 
 var _spring_center: Vector3
 var _was_captured: bool = false
+var _bring_timer: float = 0.0
 
 
 func _ready() -> void:
@@ -37,6 +40,12 @@ func _process(delta: float) -> void:
 	var carried: float = state.carried
 	var capacity: float = Economy.tool_capacity(state)
 	var prompt: String = ""
+	_bring_timer = maxf(_bring_timer - delta, 0.0)
+	if active and carried > 0.0 and Input.is_action_just_pressed("pour"):
+		if _in_pour_zone(state):
+			game.call("try_pour")
+		else:
+			_bring_timer = Config.HINT_BRING_SECONDS
 
 	if _near_spring() and _looking_at_spring():
 		if carried < capacity:
@@ -45,10 +54,10 @@ func _process(delta: float) -> void:
 				game.call("try_fill", delta)
 		else:
 			prompt = PROMPT_FULL
-	elif carried > 0.0 and _in_pour_zone():
+	elif carried > 0.0 and _bring_timer > 0.0:
+		prompt = PROMPT_BRING
+	elif carried > 0.0 and _in_pour_zone(state):
 		prompt = PROMPT_POUR
-		if active and Input.is_action_just_pressed("interact"):
-			game.call("try_pour")
 	elif carried <= 0.0 and state.total_drops < Config.GUIDE_DROPS_LIMIT:
 		prompt = PROMPT_GUIDE
 	elif carried > 0.0 and state.total_drops < Config.GUIDE_DROPS_LIMIT:
@@ -68,6 +77,7 @@ func _looking_at_spring() -> bool:
 	return forward.dot(to_target) >= Config.FILL_LOOK_COS
 
 
-func _in_pour_zone() -> bool:
+## Dökme bölgesi: o anki çanak yarıçapı + POUR_MARGIN.
+func _in_pour_zone(state: Object) -> bool:
 	var flat := Vector2(player.global_position.x, player.global_position.z)
-	return flat.length() <= Config.POUR_ZONE_RADIUS
+	return flat.length() <= BasinShape.radius(state.total_drops) + Config.POUR_MARGIN

@@ -1,5 +1,5 @@
 extends RefCounted
-## Gökyüzü, ortam ışığı ve gölgesiz güneş.
+## Gökyüzü (Poly Haven HDRI), sabit renkli ortam ışığı ve gölgesiz güneş.
 
 const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
@@ -9,12 +9,9 @@ static func build() -> Node3D:
 	var root := Node3D.new()
 	root.name = "Sky"
 
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Palette.SKY_TOP
-	sky_mat.sky_horizon_color = Palette.SKY_HORIZON
-	sky_mat.ground_horizon_color = Palette.GROUND_HORIZON
-	sky_mat.ground_bottom_color = Palette.GROUND_BOTTOM
-	sky_mat.sun_angle_max = Config.SKY_SUN_ANGLE_MAX
+	var sky_mat := PanoramaSkyMaterial.new()
+	sky_mat.panorama = load(Config.SKY_HDRI_PATH)
+	sky_mat.energy_multiplier = Config.SKY_HDRI_ENERGY
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 
@@ -33,6 +30,7 @@ static func build() -> Node3D:
 	sun.light_color = Palette.SUN
 	sun.light_energy = Config.SUN_ENERGY
 	sun.shadow_enabled = false
-	sun.rotation_degrees = Config.SUN_ROTATION_DEG
+	# Işık HDRI'deki güneşin geldiği yönden gelir (DirectionalLight -Z yönüne ışıldar)
+	sun.transform.basis = Basis.looking_at(-Config.SKY_SUN_DIR.normalized(), Vector3.UP)
 	root.add_child(sun)
 	return root

@@ -14,7 +14,8 @@ const ACTION_KEYS: Dictionary = {
 
 ## Fare tuşu eylemleri.
 const ACTION_MOUSE: Dictionary = {
-	"interact": [MOUSE_BUTTON_LEFT],
+	"interact": [MOUSE_BUTTON_LEFT],   # su doldur (basılı tut)
+	"pour": [MOUSE_BUTTON_RIGHT],      # suyu dök
 }
 
 

@@ -26,3 +26,12 @@ Hedef bilgisayar: 8 GB RAM, ekran kartı yok (tümleşik grafik).
 | Ilk dongu, su kaynagina 4 m'den bakis, elde su | 60 | 27.784 | 41 | Intel Iris Xe, 1280x720, 12.11.2026 |
 | Ilk dongu, havuz (1.500 damla) ve halka dalga | 60 | 28.356 | 50 | Intel Iris Xe, 1280x720, 12.11.2026 |
 | Ilk dongu, dolu gol (400.000 damla) | 60 | 28.010 | 44 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Buyuyen canak: dis arazi + merkez yama (kutupsal, ~4.600 ucgen), yeni kaynak kayasi; toplam damla 0, oyuga 4,6 m'den bakis | 60 | 32.473 | 37 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Ayni, 60 damla (kucuk cukur, dipte su) | 60 | 33.691 | 47 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Ayni, 1.500 damla (havuz) | 60 | 33.899 | 47 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Ayni, 400.000 damla (buyuk gol) | 60 | 33.681 | 46 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Ayni, kaynak kayasina 5 m'den bakis | 60 | 33.961 | 40 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Dokulu arazi + HDRI gokyuzu: doguş noktasindan genel bakis | 60 | 32.081 | 38 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Ayni, yere 30 derece bakis | 58 | 37.081 | 40 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Ayni, 1.500 damla, cukura bakis | 60 | 32.019 | 45 | Intel Iris Xe, 1280x720, 12.11.2026 |
+| Ayni, tepe yamacina bakis | 59 | 35.593 | 37 | Intel Iris Xe, 1280x720, 12.11.2026 |

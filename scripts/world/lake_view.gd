@@ -4,7 +4,7 @@ extends Node3D
 
 const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
-const Economy = preload("res://scripts/core/economy.gd")
+const BasinShape = preload("res://scripts/core/basin_shape.gd")
 const LakeShape = preload("res://scripts/core/lake_shape.gd")
 
 const WATER_SHADER: String = """
@@ -53,6 +53,9 @@ var _water: MeshInstance3D
 var _material: ShaderMaterial
 var _level: float = 0.0
 var _radius: float = 0.0
+var _shore_timer: float = 0.0
+var _shore_level: float = -1000.0
+var _shore_basin: float = -1.0
 var _initialized: bool = false
 var _ripples: Array[MeshInstance3D] = []
 var _ripple_age: Array[float] = []
@@ -110,20 +113,29 @@ func _process(delta: float) -> void:
 	if game == null:
 		return
 	var state: Object = game.get("state")
-	var target: float = LakeShape.level_for_fill(Economy.lake_fill(state))
+	var total: float = state.total_drops
+	var basin_r: float = BasinShape.radius(total)
+	var basin_d: float = BasinShape.depth(total)
+	var target: float = LakeShape.level(total)
 	if not _initialized:
 		_level = target
 		_initialized = true
 	else:
 		_level = lerpf(_level, target, 1.0 - exp(-Config.LAKE_LEVEL_SPEED * delta))
-	_radius = LakeShape.shore_radius(_level)
-	var shown: bool = state.total_drops > 0.0 and _radius > 0.05
+	# Kıyı hesabı ışın atar: seviye ya da çanak değişince, en sık belirli aralıkla
+	_shore_timer += delta
+	if _shore_timer >= Config.LAKE_SHORE_INTERVAL and (absf(_level - _shore_level) > 0.003 or absf(basin_r - _shore_basin) > 0.01 or _shore_basin < 0.0):
+		_shore_timer = 0.0
+		_shore_level = _level
+		_shore_basin = basin_r
+		_radius = LakeShape.shore_radius(_level, basin_r, basin_d)
+	var shown: bool = total > 0.0 and _radius > 0.05
 	_water.visible = shown
 	if shown:
 		var r: float = _radius + Config.LAKE_RADIUS_MARGIN
 		_water.position = Vector3(0.0, _level, 0.0)
 		_water.scale = Vector3(r, 1.0, r)
-		var depth: float = _level - LakeShape.bottom_level()
+		var depth: float = _level - LakeShape.bottom_level(total)
 		_material.set_shader_parameter("fade", clampf(depth / Config.LAKE_ALPHA_FADE_IN, 0.0, 1.0))
 	_update_ripples(delta)
 

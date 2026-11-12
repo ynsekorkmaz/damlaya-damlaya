@@ -5,6 +5,7 @@ extends RefCounted
 const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
 const TerrainShape = preload("res://scripts/core/terrain_shape.gd")
+const BasinShape = preload("res://scripts/core/basin_shape.gd")
 
 
 static func build() -> Node3D:
@@ -92,18 +93,18 @@ static func make_rocks() -> Array[Dictionary]:
 
 
 static func _random_position(rng: RandomNumberGenerator) -> Vector2:
-	var r_min: float = Config.PIT_RADIUS + Config.ROCK_PIT_CLEARANCE
+	var r_min: float = BasinShape.max_radius() + Config.ROCK_PIT_CLEARANCE
 	var r_max: float = Config.VALLEY_RADIUS - Config.ROCK_RIM_CLEARANCE
 	var angle: float = rng.randf() * TAU
 	var r: float = rng.randf_range(r_min, r_max)
 	return Vector2(cos(angle), sin(angle)) * r
 
 
-## Çukurdan, vadi kenarından ve doğuş noktasından uzak mı.
+## En büyük çanaktan, vadi kenarından ve doğuş noktasından uzak mı.
 static func is_allowed(pos: Vector2) -> bool:
 	var spawn := Vector2(Config.PLAYER_SPAWN.x, Config.PLAYER_SPAWN.z)
 	var r: float = pos.length()
-	if r < Config.PIT_RADIUS + Config.ROCK_PIT_CLEARANCE:
+	if r < BasinShape.max_radius() + Config.ROCK_PIT_CLEARANCE:
 		return false
 	if r > Config.VALLEY_RADIUS - Config.ROCK_RIM_CLEARANCE:
 		return false

@@ -22,3 +22,13 @@
 - Etkilesim raycast'siz: kaya yuzeyine 3 m ve bakis kosinusu, dokme icin merkezden 19 m. Fareyi yakalayan ilk tiklama etkilesim sayilmaz.
 - Elde su: kameraya bagli profil dondurmeli kap, su diski carried/kapasite ile yukselir.
 - Ek ekran goruntusu argumanlari: --debug-drops, --debug-carried, --debug-pour, --pitch.
+- Canak boyutu ilerlemeye bagli: BasinShape, Asama esikleri + GAME_END_DROPS anahtarlarinda Config.BASIN_RADII/BASIN_DEPTHS tablosu, aralar log(1+toplam) uzerinde dogrusal ile smoothstep karisimi (tekduze).
+- Canak profili kompakt: pit = -derinlik * (1 - smoothstep(r/R)); R disinda etki tam sifir. Canak icinde zemin dalgalari sonumlenir (kiyi duzgun olsun).
+- Arazi ikiye bolundu: dis arazi durağan (cukursuz, merkez hucreleri kesik), merkezde 24 m yaricapli kutupsal yama; yama sadece yaricap/derinlik 3 cm degisince, kareye bolunerek (kare basina 600 kose) yeniden kurulur, carpisma sekli de yenilenir, dugum yaratilmaz.
+- Dikis: yama kenarinda canak etkisi sifir, dis arazi yamanin altina 2,5 m uzanir (ayni fonksiyon, ayni renk); bosluk ve gorunur dikis yok.
+- Su seviyesi canak agzinin LAKE_FREEBOARD altina kadar yukselir (toplam 100'de tam), total 0'da su yok; kiyi yaricapi merkezden isinla, 0,2 sn'de bir hesaplanir.
+- Dokme bolgesi o anki canak yaricapi + 2,5 m; kayalar ve kaynak en buyuk canak (19 m) disinda. Sol tik doldurur, sag tik ("pour") dokur; uzakta sag tik su dokmez, 2 sn "Suyu cukura gotur." ipucu verir.
+- Kaynak kayasi: 3 ic ice yassi kutle (Config.SPRING_BLOBS), on iki kutle arasinda geometrik yarik, komsu kutleye yakinliga gore yumusak koyulasma (duz siyah sekil yok), yarik tabanindan suzulen serit, kucuk duzensiz kenarli birikinti; kutle basina disbukey carpisma, 1.320 ucgen.
+- Eller: Blender ile uretilir (tools/blender/make_hands.py -> assets/models/hands.glb; metaball zincirleri, iki el + onkol + "Water" hacmi, 5.704 ucgen, vertex color); held_vessel.gd modeli yukler, su Y olcegiyle yukselir, el sayilari arms_config.gd.
+- Arazi dokulu: tek ortak ShaderMaterial (assets/shaders/terrain.gdshader); vertex rengi karisim agirligi (R cimen, G toprak, B kaya, A cimenin kuruma orani), ayni TerrainBuilder.weights_from dis arazi ve yamada kullanilir; dokular dunya XZ konumundan, yakin ve uzak (dondurulmus) olcekte karisik orneklenir, agirligi ~0 katman orneklenmez; ton dalgasi shader icinde ayni sinuslerle hesaplanir; normal haritasi/gölge yok.
+- Gokyuzu: Poly Haven kloppenheim_03 2k HDRI (PanoramaSkyMaterial, enerji 1.4); gunes isigi HDRI zirvesinin yonunden (yukseklik 58,7 derece, Config.SKY_SUN_DIR); ortam isigi sabit renk, sis/glow yok. Varlik kaynaklari LISANSLAR.md.

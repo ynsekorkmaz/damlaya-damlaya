@@ -109,11 +109,13 @@ static func build() -> Node3D:
 	var stream := MeshInstance3D.new()
 	stream.name = "Stream"
 	stream.mesh = _build_stream()
+	stream.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(stream)
 
 	var puddle := MeshInstance3D.new()
 	puddle.name = "Puddle"
 	puddle.mesh = _build_puddle(root.position, root.rotation.y)
+	puddle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(puddle)
 	return root
 

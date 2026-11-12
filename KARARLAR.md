@@ -1,8 +1,8 @@
 # Kararlar
 
 - Motor Godot 4.7.2, dil GDScript (tür bildirimli).
-- Çizim gl_compatibility; gölge ve son işlem efekti yok.
-- Doku yok: düz renk ve vertex color, malzeme StandardMaterial3D.
+- Çizim Forward+ (mobil için "mobile"); Vulkan yoksa Godot OpenGL (Compatibility) çizicisine düşer (fallback_to_opengl3 açık). Eski karar (gl_compatibility, gölgesiz, efektsiz) kalktı: Intel Iris Xe'de Forward+ mevcut sahneyi 60 FPS çizdiği ölçüldü, oyun artık gölge, normal haritası ve su görünümü kazanıyor; zayıf donanım için oyun içi kalite ayarı (Düşük / Orta / Yüksek) var.
+- Kayalar, kaynak kayası ve eller düz renk/vertex color StandardMaterial3D; arazi, alet ve dükkân dokulu (aşağıya bakınız).
 - Birinci şahıs bakış, oyuncu çukura dönük doğar.
 - class_name yok; betikler birbirine preload ile erişir (başsız testte sınıf önbelleğine bağımlı olmamak için).
 - Sahne kodla kurulur: main.tscn yalnızca kök Node3D ve main.gd.
@@ -17,7 +17,7 @@
 - game.gd tek durum sahibi (Node); main.gd baglar. Kayit user://save_v1.json, her 3 sn ve pencere kapanirken; --no-save ile kayit yok. Yazma gecici dosya + yeniden adlandirma.
 - Gol tek disk mesh (840 ucgen) ve dalga vertex shader'i; seviye Economy.lake_fill'den, yaricap LakeShape'ten (merkezden isin atilan kiyi tablosu), her karede hedefe lerp.
 - Disk, kiyi yaricapindan LAKE_RADIUS_MARGIN kadar buyuk; fazlasi arazinin altinda kalir (derinlik testi), kiyi cizgisi arazi kesisimiyle dogal olusur.
-- Su seffafligi yalnizca vertex color ile (kenarda daha seffaf); derinlik dokusu okunmaz.
+- Su seffafligi vertex color ile (kenarda daha seffaf); Orta ve Yüksek'te ayrıca derinlik dokusu (kıyıda derinliğe göre saydamlık, yalnızca Forward+) ve fresnel ile gökyüzü rengi; Yüksek'te ince dalga normali. Ekran uzayı yansıması (SSR) kullanılmadı: saydam malzemede derinlik önişlemine girmiyor, kıyıda sızıntı yapıyor.
 - Halka dalga havuzu 4 nesne, her dokmede siradakini yeniden kullanir.
 - Etkilesim raycast'siz: kaya yuzeyine 3 m ve bakis kosinusu, dokme icin merkezden 19 m. Fareyi yakalayan ilk tiklama etkilesim sayilmaz.
 - Elde su: kameraya bagli profil dondurmeli kap, su diski carried/kapasite ile yukselir.
@@ -30,10 +30,16 @@
 - Dokme bolgesi o anki canak yaricapi + 2,5 m; kayalar ve kaynak en buyuk canak (19 m) disinda. Sol tik doldurur, sag tik ("pour") dokur; uzakta sag tik su dokmez, 2 sn "Suyu cukura gotur." ipucu verir.
 - Kaynak kayasi: 3 ic ice yassi kutle (Config.SPRING_BLOBS), on iki kutle arasinda geometrik yarik, komsu kutleye yakinliga gore yumusak koyulasma (duz siyah sekil yok), yarik tabanindan suzulen serit, kucuk duzensiz kenarli birikinti; kutle basina disbukey carpisma, 1.320 ucgen.
 - Eller: Blender ile uretilir (tools/blender/make_hands.py -> assets/models/hands.glb; metaball zincirleri, iki el + onkol + "Water" hacmi, 5.704 ucgen, vertex color); held_vessel.gd modeli yukler, su Y olcegiyle yukselir, el sayilari arms_config.gd.
-- Arazi dokulu: tek ortak ShaderMaterial (assets/shaders/terrain.gdshader); vertex rengi karisim agirligi (R cimen, G toprak, B kaya, A cimenin kuruma orani), ayni TerrainBuilder.weights_from dis arazi ve yamada kullanilir; dokular dunya XZ konumundan, yakin ve uzak (dondurulmus) olcekte karisik orneklenir, agirligi ~0 katman orneklenmez; ton dalgasi shader icinde ayni sinuslerle hesaplanir; normal haritasi/gölge yok.
+- Arazi dokulu: tek ortak ShaderMaterial (assets/shaders/terrain.gdshader); vertex rengi karisim agirligi (R cimen, G toprak, B kaya, A cimenin kuruma orani), ayni TerrainBuilder.weights_from dis arazi ve yamada kullanilir; dokular dunya XZ konumundan, yakin ve uzak (dondurulmus) olcekte karisik orneklenir, agirligi ~0 katman orneklenmez; ton dalgasi shader icinde ayni sinuslerle hesaplanir; normal haritası kaliteye bağlı (terrain_normal uniform'u, XZ izdüşümü, UDN karışımı; Düşük'te hiç örneklenmez).
 - Gokyuzu: Poly Haven kloppenheim_03 2k HDRI (PanoramaSkyMaterial, enerji 1.4); gunes isigi HDRI zirvesinin yonunden (yukseklik 58,7 derece, Config.SKY_SUN_DIR); ortam isigi sabit renk, sis/glow yok. Varlik kaynaklari LISANSLAR.md.
 - Eller (yeni): MPFB 2.0.18 (extensions.blender.org, user_default) varsayilan insan agi + varsayilan iskelet; tools/blender/make_hands_mpfb.py kollari iki kemikli IK, parmaklari kemik donusleriyle avuc durusuna getirir, onkol+el kesilip kapatilir; 7.116 ucgen (iki el) + su 384, vertex color. Eski metaball betigi make_hands.py yedek olarak duruyor.
 - Dukkan: Config.SHOP_POSITION (10, 20); golun disinda, kaynaga ~20 m, yuzu (-Z) cukura doner; shop.glb varsa o, yoksa kodla ahsap tezgah; kayalar SHOP_ROCK_CLEARANCE (5 m) uzak durur.
 - Dukkan paneli (shop_panel.gd): E ile acilir/kapanir, Esc yalniz paneli kapatir; acikken fare serbest, Player.input_enabled=false; yalniz Economy gorunur dediklerini listeler, satin alma Game.buy_* sarmalayicilari + purchased sinyali.
 - Elde alet: seviye 1 tas eller icinde, 2-4 sarkan aletler (kova, cift kova, sirik); assets/models/tools/<id>.glb yoksa kodla yer tutucu (tool_models.gd); "Water*" nesneleri Y olcegiyle dolar; pozlar arms_config.gd TOOL_POSES.
 - Alet/dukkan modelleri: Poly Haven CC0 kova (wooden_bucket_01) ve canak (wooden_bowl_02) Blender'da dusuk cokgene indirildi; sirik, dukkan yapisi, tente Blender'da modellendi (tools/blender/make_tool_*.py, make_shop.py, ortak tool_common.py). assets/models/tools/<id>.glb: cup 2.092, bucket 1.876, double_bucket 2.116, yoke 2.148 ucgen (su dahil); dukkan 6.360. Her glb tek diffuse (JPEG) dokulu; su nesneleri "Water", "Water.001"... duz ustlu kesik koni, orijin alt orta, yukseklik ic derinlik eksi 1,5 cm (canak: 4 mm).
+- Kalite sistemi: scripts/core/graphics_config.gd ön ayar tablosu (Düşük/Orta/Yüksek, sınırlar BOUNDS'ta, tests/graphics_tests.gd doğrular), scripts/game/graphics_settings.gd anında uygular (güneş gölgesi, ortam, tonemap, sis, MSAA/FXAA, SSAO, glow, 3B ölçek, arazi dokusu, su kademesi) ve quality_changed sinyali yayar. Ayarlar user://settings.json (oyun kaydından ayrı, hata çökertmez); --no-save dosyayı hiç okumaz/yazmaz, --quality=low|medium|high dosyaya yazmadan uygular.
+- Orta (varsayılan): 2 kademeli güneş gölgesi (70 m), gökyüzünden ortam ışığı, filmic tonemap, hafif derinlik sisi, MSAA 2x, arazi normal haritası, geliştirilmiş su. Yüksek: 4 kademeli yumuşak gölge (140 m), SSAO, hafif glow, MSAA 4x, 2k arazi dokuları. Hacimsel sis ve SSIL tabloda var ama kapalı (maliyet). TAA kullanılmadı (MSAA ile birlikte gereksiz, hareket bulanıklığı).
+- Compatibility'de SSAO, SSIL, hacimsel sis, TAA ve derinlik dokusu atlanır (RenderingServer.get_current_rendering_method()); tüm özel shader'lar iki çizicide derlenir (su shader'ı önişlemci ile kademelenir).
+- Arazi dokuları kalite değişince yeniden yüklenir: 2k diffuse ve 2k normal yalnızca Yüksek'te bellekte, Orta'da yalnızca 1k normal haritası, Düşük'te yalnızca 1k diffuse.
+- Gölge: güneş (DirectionalLight3D); arazi, kayalar, kaynak kayası, dükkân gölge atar ve alır; su, kaynak şeridi, birikinti ve halka dalgalar atmaz; eller ve elde tutulan aletler gölge alır ama atmaz (kameraya yapışık nesnenin yere gölgesi tuhaf duruyor).
+- Duraklatma menüsü (scripts/ui/pause_menu.gd): Esc açar/kapatır, dükkân açıkken Esc yalnızca dükkânı kapatır; açıkken fare serbest, Player.input_enabled=false, oyun mantığı akar. Eski "Esc: fareyi bırak" davranışı (player.gd) kaldırıldı. Klavye: yukarı/aşağı satır, sol/sağ kalite, Enter seçer.

@@ -6,13 +6,21 @@ const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
 const BasinShape = preload("res://scripts/core/basin_shape.gd")
 const LakeShape = preload("res://scripts/core/lake_shape.gd")
+const GraphicsConfig = preload("res://scripts/core/graphics_config.gd")
 
+## Su gölgelendiricisi. Önişlemci ile üç kademe: 0 sade, FRESNEL (Orta), + DETAIL (Yüksek);
+## DEPTH_FADE (kıyıda derinliğe göre saydamlık) Compatibility'de eklenmez.
 const WATER_SHADER: String = """
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_disabled;
 
+#ifdef DEPTH_FADE
+uniform sampler2D depth_tex : hint_depth_texture, repeat_disable, filter_nearest;
+#endif
+
 uniform vec4 shallow_color : source_color;
 uniform vec4 deep_color : source_color;
+uniform vec4 sky_color : source_color;
 uniform float amp1;
 uniform float amp2;
 uniform float freq1;
@@ -22,8 +30,16 @@ uniform float speed2;
 uniform float alpha_center;
 uniform float alpha_edge;
 uniform float fade = 1.0;
+uniform float depth_fade_dist = 0.8;
+uniform float shore_alpha = 0.15;
+uniform float fresnel_power = 4.0;
+uniform float fresnel_amount = 0.5;
+uniform float water_roughness = 0.2;
+uniform float water_specular = 0.35;
+uniform float detail_amp = 0.0;
 
 varying vec2 slope;
+varying vec3 wpos;
 
 void vertex() {
 	vec3 w = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -33,24 +49,50 @@ void vertex() {
 	slope = vec2(
 		amp1 * freq1 * cos(p1) - amp2 * freq2 * 0.3 * cos(p2),
 		amp1 * freq1 * 0.4 * cos(p1) + amp2 * freq2 * cos(p2));
+	wpos = w;
 }
 
 void fragment() {
-	vec3 n = normalize(vec3(-slope.x, 1.0, -slope.y));
+	vec2 s = slope;
+#ifdef DETAIL
+	vec2 q = wpos.xz;
+	s += detail_amp * (
+		vec2(0.8, 0.6) * cos(dot(q, vec2(0.8, 0.6)) * 6.1 + TIME * 1.3)
+		+ vec2(-0.5, 0.86) * cos(dot(q, vec2(-0.5, 0.86)) * 9.7 - TIME * 1.7)
+		+ vec2(0.2, -0.98) * cos(dot(q, vec2(0.2, -0.98)) * 14.3 + TIME * 2.1));
+#endif
+	vec3 n = normalize(vec3(-s.x, 1.0, -s.y));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	float rim = COLOR.r;
-	ALBEDO = mix(deep_color.rgb, shallow_color.rgb, rim);
-	ROUGHNESS = 0.2;
-	SPECULAR = 0.35;
-	ALPHA = mix(alpha_center, alpha_edge, rim) * fade;
+	vec3 col = mix(deep_color.rgb, shallow_color.rgb, rim);
+	float alpha = mix(alpha_center, alpha_edge, rim);
+#ifdef DEPTH_FADE
+	float scene_depth = texture(depth_tex, SCREEN_UV).r;
+	vec4 behind = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, scene_depth, 1.0);
+	behind.xyz /= behind.w;
+	float thick = max(VERTEX.z - behind.z, 0.0);
+	float k = smoothstep(0.0, depth_fade_dist, thick);
+	alpha *= mix(shore_alpha, 1.0, k);
+	col = mix(shallow_color.rgb, col, k);
+#endif
+#ifdef FRESNEL
+	float f = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), fresnel_power);
+	col = mix(col, sky_color.rgb, f * fresnel_amount);
+	alpha = mix(alpha, 1.0, f * 0.5);
+#endif
+	ALBEDO = col;
+	ROUGHNESS = water_roughness;
+	SPECULAR = water_specular;
+	ALPHA = alpha * fade;
 }
 """
-
 var game: Node
 var player: Node3D
 
 var _water: MeshInstance3D
 var _material: ShaderMaterial
+var _shaders: Array[Shader] = []   # kalite kademesine göre gölgelendirici
+var _water_level_quality: int = -1
 var _level: float = 0.0
 var _radius: float = 0.0
 var _shore_timer: float = 0.0
@@ -65,9 +107,7 @@ var _ripple_next: int = 0
 func _ready() -> void:
 	name = "Lake"
 	_material = ShaderMaterial.new()
-	var shader := Shader.new()
-	shader.code = WATER_SHADER
-	_material.shader = shader
+	_material.shader = shader_for(0)
 	_material.set_shader_parameter("shallow_color", Palette.WATER)
 	_material.set_shader_parameter("deep_color", Palette.WATER_DEEP)
 	_material.set_shader_parameter("amp1", Config.LAKE_WAVE_AMP_1)
@@ -78,11 +118,17 @@ func _ready() -> void:
 	_material.set_shader_parameter("speed2", Config.LAKE_WAVE_SPEED_2)
 	_material.set_shader_parameter("alpha_center", Config.LAKE_ALPHA_CENTER)
 	_material.set_shader_parameter("alpha_edge", Config.LAKE_ALPHA_EDGE)
+	_material.set_shader_parameter("sky_color", Config.LAKE_SKY_COLOR)
+	_material.set_shader_parameter("depth_fade_dist", Config.LAKE_DEPTH_FADE)
+	_material.set_shader_parameter("shore_alpha", Config.LAKE_SHORE_ALPHA)
+	_material.set_shader_parameter("fresnel_power", Config.LAKE_FRESNEL_POWER)
+	_material.set_shader_parameter("fresnel_amount", Config.LAKE_FRESNEL_AMOUNT)
 
 	_water = MeshInstance3D.new()
 	_water.name = "Water"
 	_water.mesh = build_disk_mesh()
 	_water.material_override = _material
+	_water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_water.visible = false
 	add_child(_water)
 
@@ -97,10 +143,48 @@ func _ready() -> void:
 		ring.name = "Ripple%d" % i
 		ring.mesh = ring_mesh
 		ring.material_override = mat
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ring.visible = false
 		add_child(ring)
 		_ripples.append(ring)
 		_ripple_age.append(-1.0)
+
+
+## Kalite ayarına bağlanır: su gölgelendirici kademesi kalite değişince anında değişir.
+func connect_quality(settings: Node) -> void:
+	settings.connect("quality_changed", _on_quality_changed)
+	_on_quality_changed(settings.get("level"))
+
+
+func _on_quality_changed(level: int) -> void:
+	var tier: int = int(GraphicsConfig.preset(level)["water"])
+	if tier == _water_level_quality:
+		return
+	_water_level_quality = tier
+	_material.shader = shader_for(tier)
+	var advanced: bool = tier > 0
+	_material.set_shader_parameter("water_roughness", Config.LAKE_ROUGHNESS_ADV if advanced else 0.2)
+	_material.set_shader_parameter("water_specular", Config.LAKE_SPECULAR_ADV if advanced else 0.35)
+	_material.set_shader_parameter("detail_amp", Config.LAKE_DETAIL_AMP if tier >= 2 else 0.0)
+
+
+## Kademeye göre derlenmiş gölgelendirici (ilk kullanımda üretilir, sonra önbellekten).
+## Derinlik dokusu yalnızca Compatibility dışında kullanılır.
+func shader_for(tier: int) -> Shader:
+	while _shaders.size() <= tier:
+		_shaders.append(null)
+	if _shaders[tier] == null:
+		var defines: String = ""
+		if tier >= 1:
+			defines += "#define FRESNEL\n"
+			if RenderingServer.get_current_rendering_method() != "gl_compatibility":
+				defines += "#define DEPTH_FADE\n"
+		if tier >= 2:
+			defines += "#define DETAIL\n"
+		var shader := Shader.new()
+		shader.code = defines + WATER_SHADER
+		_shaders[tier] = shader
+	return _shaders[tier]
 
 
 func bind(game_node: Node, player_node: Node3D) -> void:

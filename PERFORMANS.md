@@ -1,19 +1,18 @@
 # Performans
 
-Hedef bilgisayar: 8 GB RAM, ekran kartı yok (tümleşik grafik).
+Hedef bilgisayar: 8 GB RAM, tümleşik grafik (Intel Iris Xe, Vulkan 1.2).
 
 ## Bütçe
 
-| Kaynak | Sınır |
-|---|---|
-| Çizim yöntemi | gl_compatibility |
-| Üçgen (sahne toplamı) | 60.000 altı |
-| Çizim çağrısı | 150 altı |
-| Gerçek zamanlı gölge | kapalı |
-| Son işlem (glow, SSAO, SSR, DOF, volumetrik sis) | yok |
-| Doku dosyası | yok (düz renk, vertex color) |
-| Tekrar eden nesneler | MultiMesh |
-| Dış model, doku, eklenti | yok, her şey koddan |
+Artık tek hedef yok; her kalite seviyesinin kendi FPS hedefi var (tablo: graphics_config.gd `target_fps`). Hedefler bu bilgisayarda (Iris Xe, 1280x720) tutulur.
+
+| Seviye | Hedef FPS | Çizim | Gölge ve efekt |
+|---|---|---|---|
+| Düşük | 60 | Forward+ | gölge yok, efekt yok, MSAA yok |
+| Orta (varsayılan) | 50 (tercihen 60) | Forward+ | 2 kademeli güneş gölgesi, tonemap, hafif sis, MSAA 2x, arazi normal haritası |
+| Yüksek | 30 (yavaş olabilir) | Forward+ | 4 kademeli gölge, SSAO, glow, MSAA 4x, 2k arazi dokusu |
+
+Ortak sınırlar: tekrar eden nesneler MultiMesh; Compatibility'ye düşüşte aynı sahne Düşük'te 60 FPS tutmalı. Orta hedefi tutmazsa en pahalı kalemler (MSAA, gölge mesafesi) Yüksek'e taşınır. Üçgen sayısı gölge geçişlerini de içerir (Orta ~110 bin, Yüksek ~165 bin).
 
 ## Ölçümler
 
@@ -37,3 +36,15 @@ Hedef bilgisayar: 8 GB RAM, ekran kartı yok (tümleşik grafik).
 | Ayni, tepe yamacina bakis | 59 | 35.593 | 37 | Intel Iris Xe, 1280x720, 12.11.2026 |
 | Dukkan (yer tutucu), dukkan paneli acik (500 para, 3.000 damla) | 60 | 36.217 | 109 | Intel Iris Xe, 1280x720, 12.11.2026 |
 | Elde alet yer tutucusu: tas / kova / sirik (dukkan gorunur) | 60 | 39.715 / 32.659 / 33.171 | 50 / 49 / 55 | Intel Iris Xe, 1280x720, 12.11.2026 |
+
+### Kalite seviyeleri (Forward+, dikey eşzamanlama kapalı, ortalama FPS = 40. ile 120. kare arası, 12.11.2026)
+
+| Kadraj | Düşük FPS | Orta FPS | Yüksek FPS | Üçgen (D / O / Y) | Çizim çağrısı (D / O / Y) |
+|---|---|---|---|---|---|
+| Doğuş noktası, 1.500 damla | 385-476 | 146-203 | 64 | 39.825 / 110.427 / 166.525 | 53 / 74 / 80 |
+| Dükkâna 6 m (Orta) | - | 226 | - | - / 108.455 / - | - / 70 / - |
+| 25.000 damla, kıyıdan suya (Orta / Yüksek) | - | 125-177 | 55-57 | - / 90.493 / 140.968 | - / 54 / 61 |
+| Elde kova, 25 su (Orta) | - | 187 | - | - / 110.999 / - | - / 67 / - |
+| Aynı su kadrajı, Compatibility'ye düşüş (Yüksek) | - | - | 107 | - / - / 140.968 | - / - / 61 |
+
+Dikey eşzamanlama açıkken Düşük ve Orta ekranın 60 Hz'ine kilitlenir. Yüksek bu bilgisayarda en kötü kadrajda 55 FPS civarı; hedefin (30) üstünde. Ölçümler ardışık çalıştırmalar arasında yaklaşık yüzde 30 oynar (özellikle Düşük/Orta).

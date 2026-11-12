@@ -66,6 +66,11 @@ const TERRAIN_SHADER_PATH := "res://assets/shaders/terrain.gdshader"
 const TERRAIN_TEX_GRASS := "res://assets/textures/terrain/grass.jpg"
 const TERRAIN_TEX_SOIL := "res://assets/textures/terrain/soil.jpg"
 const TERRAIN_TEX_ROCK := "res://assets/textures/terrain/rock.jpg"
+const TERRAIN_TEX_DIR := "res://assets/textures/terrain/"   # <ad><sonek>.jpg
+const TERRAIN_TEX_NAMES: Array[String] = ["grass", "soil", "rock"]  # shader: <ad>_tex ve <ad>_nor
+const TERRAIN_FAR_MIP_BIAS_2K := 3.0   # 2k dokuda uzak mip kayması (1k için 0)
+const TERRAIN_SUFFIX_DIFF: Array[String] = ["", "_2k"]          # çözünürlük 1k, 2k (renk)
+const TERRAIN_SUFFIX_NOR: Array[String] = ["_nor", "_nor_2k"]   # çözünürlük 1k, 2k (normal, OpenGL)
 const TERRAIN_TILE_NEAR := 3.0      # m, yakın ölçekte bir döşeme
 const TERRAIN_TILE_FAR := 13.0      # m, uzak (döndürülmüş) ölçek
 const TERRAIN_FAR_MIX_MIN := 0.3    # uzak ölçeğin yakındaki payı
@@ -94,6 +99,16 @@ const PLAYER_HEIGHT := 1.7
 const PLAYER_RADIUS := 0.35
 const EYE_HEIGHT := 1.55
 const PITCH_LIMIT_DEG := 85.0
+
+# Su görünümü (Orta/Yüksek kalite; lake_view.gd)
+const LAKE_SKY_COLOR := Color(0.62, 0.78, 0.95)   # fresnel ile suya karışan gökyüzü rengi
+const LAKE_DEPTH_FADE := 0.9        # m, kıyıda saydamlığın tam açıldığı derinlik
+const LAKE_SHORE_ALPHA := 0.12      # kıyıda (derinlik 0) alfa çarpanı
+const LAKE_FRESNEL_POWER := 4.0
+const LAKE_FRESNEL_AMOUNT := 0.4
+const LAKE_ROUGHNESS_ADV := 0.07    # gelişmiş suda parlak yansıma/güneş parıltısı
+const LAKE_SPECULAR_ADV := 0.8
+const LAKE_DETAIL_AMP := 0.03       # Yüksek: ince dalga normal sapması
 
 # Gökyüzü ve ışık
 const SKY_HDRI_PATH := "res://assets/sky/sky_day.hdr"
@@ -224,4 +239,5 @@ const HELD_LERP_SPEED := 10.0
 
 # Ölçüm
 const SCREENSHOT_WAIT_FRAMES := 120
+const SCREENSHOT_MEASURE_FROM := 40  # ortalama FPS bu kareden çekime kadar ölçülür
 const SCREENSHOT_POUR_FRAMES_BEFORE := 25  # --debug-pour: dökme, çekimden bu kadar kare önce

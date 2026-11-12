@@ -3,7 +3,7 @@ extends CanvasLayer
 
 const CROSSHAIR_SIZE: float = 4.0
 const CROSSHAIR_COLOR: Color = Color(1.0, 1.0, 1.0, 0.5)
-const HINT_TEXT: String = "Tıkla: fareyi yakala   WASD: yürü   Shift: koş   Boşluk: zıpla   Esc: fareyi bırak   F3: bilgi"
+const HINT_TEXT: String = "Tıkla: fareyi yakala   WASD: yürü   Shift: koş   Boşluk: zıpla   Esc: menü   F3: bilgi"
 const HINT_VISIBLE_SECONDS: float = 8.0
 const HINT_FADE_SECONDS: float = 2.0
 const HINT_BOTTOM_OFFSET: float = 40.0
@@ -11,6 +11,9 @@ const HINT_HEIGHT: float = 30.0
 const DEBUG_MARGIN: float = 12.0
 const DEBUG_UPDATE_INTERVAL: float = 0.5
 const TEXT_SHADOW_COLOR: Color = Color(0.0, 0.0, 0.0, 0.8)
+
+## Grafik ayarları (isteğe bağlı): menüdeki "FPS göster" anahtarı bilgi kutusunu açar/kapatır.
+var settings: Node
 
 var _hint_label: Label
 var _debug_label: Label
@@ -51,15 +54,25 @@ func _ready() -> void:
 	add_child(_debug_label)
 
 	set_process(false)
+	if settings != null:
+		settings.connect("show_fps_changed", _set_info_visible)
+		_set_info_visible(bool(settings.get("show_fps")))
+
+
+func _set_info_visible(on: bool) -> void:
+	_debug_label.visible = on
+	set_process(on)
+	if on:
+		_update_debug_text()
+		_debug_timer = 0.0
 
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_debug"):
-		_debug_label.visible = not _debug_label.visible
-		set_process(_debug_label.visible)
-		if _debug_label.visible:
-			_update_debug_text()
-			_debug_timer = 0.0
+		if settings != null:
+			settings.call("set_show_fps", not _debug_label.visible)
+		else:
+			_set_info_visible(not _debug_label.visible)
 
 
 func _process(delta: float) -> void:

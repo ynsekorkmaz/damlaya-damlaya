@@ -3,6 +3,7 @@ extends RefCounted
 
 const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
+const GraphicsConfig = preload("res://scripts/core/graphics_config.gd")
 
 
 static func build() -> Node3D:
@@ -21,10 +22,15 @@ static func build() -> Node3D:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Palette.AMBIENT
 	env.ambient_light_energy = Config.AMBIENT_ENERGY
+	env.fog_light_color = GraphicsConfig.FOG_COLOR
+	env.fog_sun_scatter = 0.0
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	var we := WorldEnvironment.new()
+	we.name = "WorldEnvironment"
 	we.environment = env
 	root.add_child(we)
 
+	# Gölge ve diğer ayarlar graphics_settings.gd tarafından kaliteye göre uygulanır
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.light_color = Palette.SUN

@@ -9,7 +9,7 @@ const CAMERA_FAR: float = 400.0
 const FALL_LIMIT_Y: float = -30.0
 const FLOOR_SNAP: float = 0.3
 
-## Dükkân paneli açıkken false: hareket ve bakış durur.
+## Dükkân paneli ya da duraklatma menüsü açıkken false: hareket ve bakış durur.
 var input_enabled: bool = true
 
 var _camera: Camera3D
@@ -51,8 +51,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		var button := event as InputEventMouseButton
 		if button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif event.is_action_pressed("ui_cancel"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
 		rotate_y(-motion.relative.x * Config.MOUSE_SENSITIVITY)

@@ -61,6 +61,9 @@ func _ready() -> void:
 		else:
 			mi.material_override = _skin_mat
 	_build_tools()
+	# Eller ve aletler gölge alır ama atmaz (kameraya bu kadar yakın nesnenin yere gölgesi tuhaf durur)
+	for node: Node in find_children("*", "GeometryInstance3D", true, false):
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	if game != null and game.has_signal("poured"):
 		game.connect("poured", _on_poured)

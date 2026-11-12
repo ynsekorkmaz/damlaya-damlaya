@@ -31,6 +31,8 @@ static func build() -> Node3D:
 
 
 static var _material: ShaderMaterial
+static var _tex_k: int = 1
+static var _normal_on: bool = false
 
 
 ## Dış arazi ve yama aynı malzemeyi paylaşır (dikişte doku/renk farkı olmaz).
@@ -42,6 +44,8 @@ static func material() -> ShaderMaterial:
 	mat.set_shader_parameter("grass_tex", load(Config.TERRAIN_TEX_GRASS))
 	mat.set_shader_parameter("soil_tex", load(Config.TERRAIN_TEX_SOIL))
 	mat.set_shader_parameter("rock_tex", load(Config.TERRAIN_TEX_ROCK))
+	_tex_k = 1
+	_normal_on = false
 	mat.set_shader_parameter("tile_near", Config.TERRAIN_TILE_NEAR)
 	mat.set_shader_parameter("tile_far", Config.TERRAIN_TILE_FAR)
 	mat.set_shader_parameter("far_mix_min", Config.TERRAIN_FAR_MIX_MIN)
@@ -61,6 +65,27 @@ static func material() -> ShaderMaterial:
 	mat.set_shader_parameter("hill_wave_amount", Config.HILL_WAVE_AMOUNT)
 	_material = mat
 	return mat
+
+
+## Kaliteye göre normal haritası gücü ve doku çözünürlüğü. Doku değişince öncekiler bırakılır
+## (malzeme yalnızca geçerli seti tutar); 2k yalnızca k = 2 iken, normal haritası yalnızca güç > 0 iken yüklenir.
+static func apply_quality(normal_strength: float, tex_k: int) -> void:
+	var mat: ShaderMaterial = material()
+	mat.set_shader_parameter("normal_strength", normal_strength)
+	mat.set_shader_parameter("far_mip_bias", Config.TERRAIN_FAR_MIP_BIAS_2K if tex_k >= 2 else 0.0)
+	var k: int = clampi(tex_k, 1, Config.TERRAIN_SUFFIX_DIFF.size())
+	var want_normal: bool = normal_strength > 0.0
+	if k == _tex_k and want_normal == _normal_on:
+		return
+	for tex_name: String in Config.TERRAIN_TEX_NAMES:
+		mat.set_shader_parameter(tex_name + "_tex",
+			load(Config.TERRAIN_TEX_DIR + tex_name + Config.TERRAIN_SUFFIX_DIFF[k - 1] + ".jpg"))
+		var nor: Texture2D = null
+		if want_normal:
+			nor = load(Config.TERRAIN_TEX_DIR + tex_name + Config.TERRAIN_SUFFIX_NOR[k - 1] + ".jpg")
+		mat.set_shader_parameter(tex_name + "_nor", nor)
+	_tex_k = k
+	_normal_on = want_normal
 
 
 static func _tint(c: Color, gain: float) -> Color:

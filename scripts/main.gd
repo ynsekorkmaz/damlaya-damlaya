@@ -1,5 +1,6 @@
 extends Node3D
 ## Sahneyi kodla kurar. `--screenshot=<yol>` verilirse ölçüm yapıp çıkar.
+## Ek argümanlar: --quality=low|medium|high (ayar dosyasına yazmadan), --no-save, --open-menu, --open-shop.
 
 const Config = preload("res://scripts/core/config.gd")
 const TerrainShape = preload("res://scripts/core/terrain_shape.gd")
@@ -17,7 +18,12 @@ const GameState = preload("res://scripts/core/game_state.gd")
 
 func _ready() -> void:
 	InputSetup.register()
-	add_child(SkyBuilder.build())
+	var settings := Node.new()
+	settings.set_script(preload("res://scripts/game/graphics_settings.gd"))
+	add_child(settings)
+	var sky: Node3D = SkyBuilder.build()
+	add_child(sky)
+	settings.call("bind", (sky.get_node("WorldEnvironment") as WorldEnvironment).environment, sky.get_node("Sun") as DirectionalLight3D)
 	var terrain: Node3D = TerrainBuilder.build()
 	add_child(terrain)
 	add_child(RocksBuilder.build())
@@ -42,6 +48,7 @@ func _ready() -> void:
 	add_child(player)
 
 	lake.call("bind", game, player)
+	lake.call("connect_quality", settings)
 
 	var vessel := Node3D.new()
 	vessel.set_script(preload("res://scripts/player/held_vessel.gd"))
@@ -68,7 +75,15 @@ func _ready() -> void:
 
 	var debug_hud := CanvasLayer.new()
 	debug_hud.set_script(preload("res://scripts/ui/debug_hud.gd"))
+	debug_hud.set("settings", settings)
 	add_child(debug_hud)
+
+	var pause_menu := CanvasLayer.new()
+	pause_menu.set_script(preload("res://scripts/ui/pause_menu.gd"))
+	pause_menu.set("game", game)
+	pause_menu.set("player", player)
+	pause_menu.set("settings", settings)
+	add_child(pause_menu)
 
 	var st: GameState = game.get("state")
 	var cam_at := Vector2.INF
@@ -76,6 +91,7 @@ func _ready() -> void:
 	var pitch_deg: float = 0.0
 	var debug_carried: float = -1.0
 	var open_shop: bool = false
+	var open_menu: bool = false
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--camera-at="):
 			cam_at = _parse_xz(arg.substr("--camera-at=".length()))
@@ -94,6 +110,8 @@ func _ready() -> void:
 			st.tool_level = clampi(arg.substr("--debug-tool=".length()).to_int(), 0, Cfg.TOOLS.size() - 1)
 		elif arg == "--open-shop":
 			open_shop = true
+		elif arg == "--open-menu":
+			open_menu = true
 	if debug_carried >= 0.0:
 		st.carried = minf(debug_carried, Economy.tool_capacity(st))
 	var basin_r: float = BasinShape.radius(st.total_drops)
@@ -108,6 +126,8 @@ func _ready() -> void:
 
 	if open_shop:
 		shop_panel.call("open")
+	if open_menu:
+		pause_menu.call("open")
 
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--screenshot="):
@@ -123,11 +143,18 @@ func _parse_xz(text: String) -> Vector2:
 
 func _capture_and_quit(path: String) -> void:
 	var pour_frame: int = Config.SCREENSHOT_WAIT_FRAMES - Config.SCREENSHOT_POUR_FRAMES_BEFORE
+	var measure_start: int = 0
 	for i in range(Config.SCREENSHOT_WAIT_FRAMES):
 		await get_tree().process_frame
+		if i == Config.SCREENSHOT_MEASURE_FROM:
+			measure_start = Time.get_ticks_usec()
 		if i == pour_frame and OS.get_cmdline_user_args().has("--debug-pour"):
 			get_node("Game").call("try_pour")
 	await RenderingServer.frame_post_draw
+	var measured_frames: int = Config.SCREENSHOT_WAIT_FRAMES - Config.SCREENSHOT_MEASURE_FROM
+	var elapsed: float = float(Time.get_ticks_usec() - measure_start) / 1000000.0
+	print("FPS ort: ", snappedf(float(measured_frames) / maxf(elapsed, 0.000001), 0.1))
+	print("Cizici: ", RenderingServer.get_current_rendering_method(), ", kalite: ", get_node("GraphicsSettings").get("level"))
 	print("FPS: ", Performance.get_monitor(Performance.TIME_FPS))
 	print("Ucgen: ", Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
 	print("Cizim cagrisi: ", Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))

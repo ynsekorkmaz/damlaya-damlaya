@@ -11,6 +11,17 @@
 
 Dosyalar değiştirilmeden kopyalanmıştır (yalnızca adları sadeleştirildi).
 
+Arazi dokularının kalite seviyesine bağlı ek dosyaları (Poly Haven, CC0, JPEG, değiştirilmeden; indirme tarihi 2026-11-12, toplam yaklaşık 28,5 MB). Normal haritaları OpenGL (nor_gl) biçimindedir. 1k normal haritası Orta ve Yüksek'te, 2k diffuse ve 2k normal haritası yalnızca Yüksek'te yüklenir.
+
+| Doku | Poly Haven kimliği | Eklenen dosya | Özgün dosya | Çözünürlük |
+|---|---|---|---|---|
+| Çimen | rocky_terrain_02 | assets/textures/terrain/grass_nor.jpg | rocky_terrain_02_nor_gl_1k.jpg | 1k normal |
+| Çimen | rocky_terrain_02 | assets/textures/terrain/grass_2k.jpg, grass_nor_2k.jpg | rocky_terrain_02_diff_2k.jpg, rocky_terrain_02_nor_gl_2k.jpg | 2k diffuse, 2k normal |
+| Toprak | dry_ground_rocks | assets/textures/terrain/soil_nor.jpg | dry_ground_rocks_nor_gl_1k.jpg | 1k normal |
+| Toprak | dry_ground_rocks | assets/textures/terrain/soil_2k.jpg, soil_nor_2k.jpg | dry_ground_rocks_diff_2k.jpg, dry_ground_rocks_nor_gl_2k.jpg | 2k diffuse, 2k normal |
+| Kaya | rock_ground | assets/textures/terrain/rock_nor.jpg | rock_ground_nor_gl_1k.jpg | 1k normal |
+| Kaya | rock_ground | assets/textures/terrain/rock_2k.jpg, rock_nor_2k.jpg | rock_ground_diff_2k.jpg, rock_ground_nor_gl_2k.jpg | 2k diffuse, 2k normal |
+
 | MPFB insan tabani (eller) | MPFB 2.0.18, https://extensions.blender.org/add-ons/mpfb/ ; taban ag base.obj | MakeHuman topluluğu (Data Collection AB, J. Palmius, J. Hauquier) | Taban ag: CC0 (base.obj başlığı); eklenti kodu GPL-3.0-or-later (oyuna girmez, yalnızca araç) | 2026-11-12 | assets/models/hands.glb (poz verilmiş, kesilmiş el + önkol) | Hedef/modifier dosyalarının ayrı lisansı doğrulanmadı |
 
 

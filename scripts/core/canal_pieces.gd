@@ -13,9 +13,9 @@ const DIR_NAMES_TR: Array[String] = ["Kuzey", "Doğu", "Güney", "Batı"]
 const DEFAULT_COLS: int = 14
 const DEFAULT_ROWS: int = 10
 const DEFAULT_SPRINGS: Dictionary = {
-	"A": {"row": 4, "flow": 60.0, "cost": 4000},
-	"B": {"row": 1, "flow": 180.0, "cost": 30000},
-	"C": {"row": 8, "flow": 480.0, "cost": 200000},
+	"A": {"row": 4, "flow": 80.0, "cost": 6000},
+	"B": {"row": 1, "flow": 240.0, "cost": 50000},
+	"C": {"row": 8, "flow": 800.0, "cost": 150000},
 }
 ## Eski belgenin 8x5 duzeni (testler icin).
 const LEGACY_COLS: int = 8
@@ -63,7 +63,7 @@ const PIECES: Dictionary = {
 	},
 	"mill": {
 		"id": "mill", "name_tr": "Değirmen", "desc_tr": "Düz kanal gibidir; bulunduğu kanal ağına verim bonusu verir.",
-		"base_cost": 600, "unlock_cost": 1200, "leak_factor": 1.0,
+		"base_cost": 600, "unlock_cost": 2500, "leak_factor": 1.0,
 		"nodes": [[E, W]], "links": [],
 	},
 	"aqueduct": {
@@ -82,8 +82,8 @@ const PIECES: Dictionary = {
 const MATERIAL_IDS: Array[String] = ["earth", "wood", "stone"]
 const MATERIALS: Dictionary = {
 	"earth": {"id": "earth", "name_tr": "Toprak", "desc_tr": "Ucuz ama çok sızdırır.", "leak": 0.05, "cost_mult": 1.0, "unlock_cost": 0},
-	"wood": {"id": "wood", "name_tr": "Ahşap", "desc_tr": "Daha az sızdırır.", "leak": 0.03, "cost_mult": 2.5, "unlock_cost": 800},
-	"stone": {"id": "stone", "name_tr": "Taş", "desc_tr": "En az sızdırır.", "leak": 0.012, "cost_mult": 6.0, "unlock_cost": 8000},
+	"wood": {"id": "wood", "name_tr": "Ahşap", "desc_tr": "Daha az sızdırır.", "leak": 0.03, "cost_mult": 2.5, "unlock_cost": 2500},
+	"stone": {"id": "stone", "name_tr": "Taş", "desc_tr": "En az sızdırır.", "leak": 0.012, "cost_mult": 6.0, "unlock_cost": 30000},
 }
 
 ## Fiyat formulleri
@@ -93,10 +93,10 @@ const REFUND_FACTOR: float = 0.5
 
 ## Yukseltmeler
 const WIDTH_MAX_LEVEL: int = 4
-const WIDTH_BASE_COST: float = 3000.0
+const WIDTH_BASE_COST: float = 12000.0
 const WIDTH_COST_GROWTH: float = 4.0
 const LINING_MAX_LEVEL: int = 3
-const LINING_BASE_COST: float = 5000.0
+const LINING_BASE_COST: float = 15000.0
 const LINING_COST_GROWTH: float = 4.0
 ## Tas kaplama seviyesine gore sizinti carpani.
 const LINING_LEAK_MULT: Array[float] = [1.0, 0.7, 0.4, 0.16]

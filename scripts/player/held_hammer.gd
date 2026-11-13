@@ -5,9 +5,11 @@ extends Node3D
 
 const Config = preload("res://scripts/core/config.gd")
 const Placeholders = preload("res://scripts/world/placeholder_models.gd")
+const Arms = preload("res://scripts/player/arms_config.gd")
+const ToolModels = preload("res://scripts/player/tool_models.gd")
 
-const REST_POS := Vector3(0.27, -0.30, -0.50)
-const REST_ROT_DEG := Vector3(-32.0, 24.0, -10.0)
+const REST_POS := Vector3(0.26, -0.26, -0.50)
+const REST_ROT_DEG := Vector3(-26.0, 24.0, -10.0)
 const MODEL_SCALE: float = 1.25
 const HIDE_DROP: float = 0.55           # çekiç gizliyken aşağı kayma (m)
 const BLEND_SPEED: float = 5.0          # giriş/çıkış hızı (1/sn)
@@ -22,12 +24,12 @@ const WALK_SPEED_REF: float = 5.0
 const SPEED_SMOOTH: float = 8.0
 const BREATH_Y: float = 0.0014
 const BREATH_HZ: float = 0.7
-const SKIN := Color(0.70, 0.50, 0.38)
 
 var equipment: Node
 var vessel: Node3D
 
 var _rig: Node3D
+var _skin_mat: StandardMaterial3D
 var _t: float = 0.0
 var _strike: float = -1.0
 var _clock: float = 0.0
@@ -58,39 +60,47 @@ func _ready() -> void:
 	visible = false
 
 
-## Sapı saran yumruk ve geriye uzanan ön kol (basit, ten rengi).
+## Sapı kavrayan el: hands_grip.glb (Arms.GRIPS["hammer"]); model yoksa basit yumruk yedeği.
 func _build_hand() -> Node3D:
 	var hand := Node3D.new()
 	hand.name = "Hand"
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = SKIN
-	mat.roughness = 0.85
-	var fist := MeshInstance3D.new()
-	var fm := SphereMesh.new()
-	fm.radius = 0.042
-	fm.height = 0.084
-	fm.radial_segments = 12
-	fm.rings = 6
-	fist.mesh = fm
-	fist.scale = Vector3(1.15, 0.9, 1.0) * MODEL_SCALE
-	fist.position = Vector3(0.0, 0.02, 0.0)
-	fist.material_override = mat
-	hand.add_child(fist)
-	var arm := MeshInstance3D.new()
-	var am := CylinderMesh.new()
-	am.top_radius = 0.030
-	am.bottom_radius = 0.040
-	am.height = 0.34
-	am.radial_segments = 10
-	am.rings = 1
-	arm.mesh = am
-	arm.material_override = mat
-	# Ön kol: yumruktan kameraya doğru ve aşağı
-	var dir := Vector3(0.30, -0.80, 0.50).normalized()
-	arm.position = dir * 0.18 + Vector3(0.0, 0.02, 0.0)
-	arm.basis = Basis(Quaternion(Vector3.UP, dir))
-	hand.add_child(arm)
+	_skin_mat = ToolModels.skin_material()
+	var any: bool = false
+	for spec: Dictionary in Arms.GRIPS.get("hammer", []):
+		var grip: Node3D = ToolModels.build_grip(String(spec["node"]), spec["pos"], spec["rot"], float(spec["scale"]) * MODEL_SCALE)
+		if grip == null:
+			continue
+		any = true
+		grip.position *= MODEL_SCALE
+		for node: Node in grip.find_children("*", "MeshInstance3D", true, false):
+			(node as MeshInstance3D).material_override = _skin_mat
+		hand.add_child(grip)
+	if not any:
+		var fist := MeshInstance3D.new()
+		var fm := SphereMesh.new()
+		fm.radius = 0.042
+		fm.height = 0.084
+		fm.radial_segments = 12
+		fm.rings = 6
+		fist.mesh = fm
+		fist.scale = Vector3(1.15, 0.9, 1.0) * MODEL_SCALE
+		fist.position = Vector3(0.0, 0.02, 0.0)
+		fist.material_override = _skin_mat
+		hand.add_child(fist)
+	_bind_quality()
 	return hand
+
+
+func _bind_quality() -> void:
+	var settings: Node = get_tree().get_first_node_in_group("graphics_settings")
+	if settings == null:
+		return
+	settings.connect("quality_changed", _on_quality_changed.bind(settings))
+	_on_quality_changed(0, settings)
+
+
+func _on_quality_changed(_level: int, settings: Node) -> void:
+	ToolModels.apply_skin_gain(_skin_mat, float(settings.get("skin_gain")))
 
 
 ## Yapı kurulunca vuruş hareketi.

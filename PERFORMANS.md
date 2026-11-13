@@ -60,3 +60,9 @@ Renk dengesi düzeltmesi sonrası (doğuş noktası, elde 5 su, dikey eşzamanla
 | Kanal önizlemesi ve çekiç eldeyken (ızgara, bilgi kutusu) | - | 60 | - | - / 123.467 / - | - / 163 / - |
 | Bitki senaryosu, 25.000 damla, kıyıdan | - | 60 | - | - / 107.851 / - | - / 82 / - |
 | Kanal yakın, Compatibility çizicisi (Orta) | - | 60 | - | - | - |
+| Kayalar (6 glb biçimi, 40 kaya) ve kaynak kayası yakın, Orta | - | 60 | - | kaya üst sınırı 32.000 | - |
+| Bitki senaryosu (çeşme, çiğ otu, direk, dere ağzı glb) , 25.000 damla, Orta | - | 60 | - | - | - |
+
+### Canlılar ve kavrayan eller (büyük göl, 400.000 damla, kıyıdan, 1280x720, dikey eşzamanlama açık)
+
+Balık (9 örnek, 101 üçgen) ve kuş (6 örnek, 99 üçgen) en çok iki ek çizim çağrısı ve yaklaşık 1.200 üçgen ekler; örnek dönüşümleri her karede yazılır ama nesne ya da dizi tahsis edilmez. Ölçüm: Düşük 60 FPS (36.887 üçgen, 46 çizim çağrısı), Orta 60 FPS (100.709 üçgen, 67 çağrı), Yüksek 44,9 FPS (153.426 üçgen, 82 çağrı; bu bilgisayarda Yüksek zaten 45-60 arası, canlılardan bağımsız). Eller: hands_grip.glb 7.116 el üçgeni + 168 kol üçgeni, ama her alette yalnızca ilgili el çizilir (3.558 + 84, çift kovada ikisi).

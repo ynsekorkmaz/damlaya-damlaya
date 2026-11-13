@@ -22,6 +22,7 @@ var game: Node
 
 var _entries: Dictionary = {}   ## hücre indeksi -> {node, key, parts, flowing, sign0, sign1, gate_open}
 var _animated: Array[Dictionary] = []
+var _flowing_nodes: Dictionary = {}   ## hücre -> akan ağız yönleri (dünya yönü)
 
 
 func _ready() -> void:
@@ -172,6 +173,7 @@ func refresh() -> void:
 	var net: Object = game.get("canal")
 	var result: Dictionary = game.call("canal_result")
 	var flow_dir: Dictionary = result["flow_dir"]
+	_flowing_nodes = result.get("flowing_nodes", {})
 	var flowing: Dictionary = {}
 	for cell: Variant in result["flowing"]:
 		flowing[cell] = true
@@ -217,10 +219,17 @@ func _update_cell(net: Object, col: int, row: int, idx: int, flowing: Dictionary
 			local_dir = posmod(wd - int(piece["rotation"]), 4)
 	var piece_id: String = String(piece["piece"])
 	var waters: Array = (e["parts"] as Dictionary)["waters"]
+	var mouths: Array = _flowing_nodes.get(cell, [])
 	for i in range(waters.size()):
 		var mi: MeshInstance3D = waters[i]
-		mi.visible = is_flowing
-		if not is_flowing:
+		var line_flowing: bool = is_flowing
+		if piece_id == "aqueduct" and waters.size() == 2:
+			# Su kemerinde her hat ayrı: hat 0 yerelde doğu-batı, hat 1 kuzey-güney; yalnızca akan hattın suyu görünür.
+			var axis_a: int = Pieces.E if i == 0 else Pieces.N
+			var wa: int = (axis_a + int(piece["rotation"])) % 4
+			line_flowing = mouths.has(wa) or mouths.has((wa + 2) % 4)
+		mi.visible = line_flowing
+		if not line_flowing:
 			continue
 		var exit_local: int = local_dir
 		if piece_id == "aqueduct":

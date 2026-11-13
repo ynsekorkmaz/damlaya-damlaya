@@ -539,4 +539,5 @@ def render(objs, outdir):
         scn.collection.objects.unlink(co)
 
 
-main()
+if __name__ == "__main__":
+    main()

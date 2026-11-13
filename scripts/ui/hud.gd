@@ -38,8 +38,8 @@ const WATER_BAR_SIZE: Vector2 = Vector2(200.0, 10.0)
 const STAGE_BOX_TOP: float = 100.0 ## F3 yazisinin (sol ust, ~3 satir) altinda kalir
 const PROMPT_ANCHOR_Y: float = 0.60 ## Nisangahin biraz alti, tus ipucunun ustu
 const BANNER_TOP: float = 70.0
-const BANNER_HOLD_SECONDS: float = 3.5
-const BANNER_FADE_SECONDS: float = 1.5
+const BANNER_HOLD_SECONDS: float = 3.0
+const BANNER_FADE_SECONDS: float = 1.0
 const UPGRADES_HINT: String = "Tab: geliştirmeleri aç"
 const UPGRADES_HINT_MONEY: float = 5.0 ## Para ilk kez bunu geçince bir kez gösterilir
 const POPUP_POOL_SIZE: int = 4
@@ -71,6 +71,7 @@ var _popup_next: int = 0
 var _water_full: bool = false
 var _prev_money: float = 0.0
 var _hint_shown: bool = false
+var _primed: bool = false
 
 
 func _ready() -> void:
@@ -99,6 +100,13 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if not _primed:
+		# Açılıştaki durum (kayıt, hata ayıklama argümanları) başlık ya da ipucu göstermez.
+		_primed = true
+		var start_state: GameState = _get_state()
+		if start_state != null:
+			_prev_money = start_state.money
+			_hint_shown = start_state.money > UPGRADES_HINT_MONEY
 	_timer += delta
 	if _timer >= UPDATE_INTERVAL:
 		_timer = 0.0

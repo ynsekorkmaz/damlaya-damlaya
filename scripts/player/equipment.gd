@@ -5,6 +5,7 @@ extends Node
 
 signal slot_changed(slot: int)
 signal selection_changed(key: String)
+signal hammer_denied(unlocked: bool) ## Çekiç yokken çekice geçilmek istendi; unlocked = kilidi açık ama alınmamış
 
 const Config = preload("res://scripts/core/config.gd")
 
@@ -46,6 +47,14 @@ func set_slot(new_slot: int) -> void:
 		return
 	slot = s
 	slot_changed.emit(slot)
+
+
+## Oyuncu girdisiyle çekice geçer; çekiç yoksa nedenini bildirir.
+func request_hammer() -> void:
+	if hammer_owned():
+		set_slot(SLOT_HAMMER)
+	else:
+		hammer_denied.emit(bool((game.get("state") as Object).get("hammer_unlocked")) if game != null else false)
 
 
 func select(key: String) -> void:
@@ -102,7 +111,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		set_slot(SLOT_WATER)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("slot_2") and not event.is_echo():
-		set_slot(SLOT_HAMMER)
+		request_hammer()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
 		var button: int = (event as InputEventMouseButton).button_index
@@ -112,6 +121,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if (event as InputEventMouseButton).shift_pressed:
 			if hammer_active():
 				cycle_recent(step)
-		elif hammer_owned():
-			set_slot(SLOT_HAMMER if slot == SLOT_WATER else SLOT_WATER)
+		elif slot == SLOT_HAMMER:
+			set_slot(SLOT_WATER)
+		else:
+			request_hammer()
 		get_viewport().set_input_as_handled()

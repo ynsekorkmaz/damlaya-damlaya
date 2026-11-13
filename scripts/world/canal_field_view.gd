@@ -22,8 +22,7 @@ const LABEL_FONT: int = 64
 const LABEL_OPEN := Color(0.97, 0.97, 0.94)
 const LABEL_CLOSED := Color(0.78, 0.80, 0.80, 0.8)
 const PALE := Color(0.88, 0.90, 0.92, 0.45)
-const JET_HEIGHT: float = 0.8
-const SPRING_DROPS: int = 18
+const FLOW_START_OFFSET: float = 0.95   # akış şeridi çeşmenin ön basamağından başlar (m)
 const SPRING_FLOW_WIDTH: float = 0.6
 
 var game: Node
@@ -122,22 +121,13 @@ func _build_springs() -> void:
 		add_child(root)
 		var model: Node3D = StructuresView.make_model("spring")
 		root.add_child(model)
-		var jet_mesh := CylinderMesh.new()
-		jet_mesh.top_radius = 0.025
-		jet_mesh.bottom_radius = 0.07
-		jet_mesh.height = JET_HEIGHT
-		jet_mesh.radial_segments = 8
-		jet_mesh.rings = 1
-		var jet := WaterFx.make_instance(jet_mesh, WaterFx.water_material(-1))
-		jet.position = Vector3(0.0, 0.6 + JET_HEIGHT * 0.5, 0.0)
-		root.add_child(jet)
-		var spray := WaterFx.make_instance(WaterFx.drops_mesh(SPRING_DROPS, 0.06, 300 + int(def["row"])), WaterFx.drop_material(1, JET_HEIGHT, 0.7))
-		spray.position = Vector3(0.0, 0.6, 0.0)
-		root.add_child(spray)
+		var water: Dictionary = StructuresView.add_fountain_water(model, 300 + int(def["row"]))
+		var jet: Node3D = water["jet"]
+		var spray: Node3D = water["spray"]
 		# Çeşmeden alanın batı kenarına akan su (açıkken)
 		var flow_pts := PackedVector3Array()
 		var steps: int = 4
-		var x0: float = p.x
+		var x0: float = p.x + FLOW_START_OFFSET
 		var x1: float = CanalField.west() + 0.2
 		for i in range(steps + 1):
 			var x: float = lerpf(x0, x1, float(i) / float(steps))

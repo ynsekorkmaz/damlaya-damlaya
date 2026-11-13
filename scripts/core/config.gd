@@ -120,17 +120,18 @@ const AMBIENT_ENERGY := 1.15
 # Kayalar
 const ROCK_COUNT := 40             # toplam kaya (büyük, orta ve küçük taşlar)
 const ROCK_SEED := 7
-const ROCK_VARIANTS := 3           # ayrı biçim = ayrı MultiMesh
+const ROCK_VARIANTS := 6           # ayrı biçim = ayrı MultiMesh (assets/models/rocks/rock_1..6.glb)
+const ROCK_MODEL_PATH := "res://assets/models/rocks/rock_%d.glb"  # %d: 1 tabanlı biçim sırası
 const ROCK_RINGS := 7              # dilim sayısı (enlem)
 const ROCK_SEGMENTS := 11          # boylam dilimi
-const ROCK_TRI_BUDGET := 6000      # tüm kayaların üçgen üst sınırı
+const ROCK_TRI_BUDGET := 32000     # tüm kayaların üçgen üst sınırı (model başına en çok 800)
 const ROCK_BUMP := 0.16            # düşük frekanslı biçim bozulması (yarıçap oranı)
 const ROCK_BUMP_FREQ := 2.3
 const ROCK_BUMP_FREQ_2 := 4.1
 const ROCK_BUMP_2 := 0.45          # ikinci sinüs katmanının payı
 const ROCK_BASE_FLAT := 0.30       # alt yarının yassılması (0 = küre)
-const ROCK_SINK_FRAC := 0.12       # yüksekliğin bu oranı kadar yere gömülür
-const ROCK_TILT_MAX := 0.18        # radyan, hafif eğiklik
+const ROCK_SINK_FRAC := 0.14       # yüksekliğin bu oranı kadar yere gömülür
+const ROCK_TILT_MAX := 0.10        # radyan, hafif eğiklik
 const ROCK_CLUSTER_COUNT := 9      # kümelerin ana (büyük) kayaları
 const ROCK_BIG_SIZE_MIN := 1.5     # m, ana kaya genişliği
 const ROCK_BIG_SIZE_MAX := 2.5
@@ -141,8 +142,8 @@ const ROCK_SMALL_SIZE_MAX := 0.55
 const ROCK_MID_CHANCE := 0.3       # serpilmiş tek kayada orta boy olasılığı
 const ROCK_AXIS_MIN := 0.75        # eksen ölçeği çarpanı (genişlik)
 const ROCK_AXIS_MAX := 1.25
-const ROCK_HEIGHT_MIN := 0.8      # yükseklik / genişlik
-const ROCK_HEIGHT_MAX := 1.1
+const ROCK_HEIGHT_MIN := 0.95     # model yüksekliğine çarpan (model zaten 0,55-0,95 genişlik)
+const ROCK_HEIGHT_MAX := 1.3
 const ROCK_SAT_MIN := 1             # kümedeki uydu kaya sayısı
 const ROCK_SAT_MAX := 2
 const ROCK_SAT_DIST_MIN := 0.9     # uydunun ana kayaya uzaklığı (ana yarıçapının katı)
@@ -154,29 +155,18 @@ const ROCK_RIM_CLEARANCE := 6.0    # vadi sınırından içeri uzaklık
 const ROCK_SPAWN_CLEARANCE := 4.0  # doğuş noktasından uzaklık (en az 3 m)
 const ROCK_MAX_TRIES := 400
 
-# Su kaynağı: iç içe 3 yassı kaya kütlesi, aralarında yarık, süzülen su, dipte birikinti; y araziden alınır
+# Su kaynağı: assets/models/spring_rock.glb (kaya grubu, ortasında yarık), süzülen su, dipte birikinti; y araziden alınır
 const SPRING_POSITION := Vector3(-9.0, 0.0, 26.0)
 const SPRING_HEIGHT := 2.2
 const SPRING_RADIUS := 1.9           # etkileşim için yaklaşık taban yarıçapı (m)
-# Kütleler yerel uzayda (+Z doğuş noktasına bakar): merkez, yarıçaplar
-const SPRING_BLOBS: Array[Dictionary] = [
-	{"center": Vector3(-1.05, 0.75, 0.05), "radii": Vector3(1.05, 1.45, 1.0)},
-	{"center": Vector3(1.0, 0.5, 0.15), "radii": Vector3(0.98, 1.2, 0.95)},
-	{"center": Vector3(0.0, 0.55, -0.85), "radii": Vector3(1.35, 1.3, 1.1)},
-]
-const SPRING_RINGS := 12
-const SPRING_SEGMENTS := 20
-const SPRING_BUMP := 0.12            # yüzey bozulması (yarıçap oranı)
-const SPRING_SKIRT := 0.4           # alt yarıda yanlara taşma (yassı etek)
 const SPRING_SINK := 0.25            # araziye gömülme (m)
-const SPRING_AO_DIST := 0.7          # komşu kütleye bu kadar yakın yüzey kararır (m)
-const SPRING_AO_AMOUNT := 0.85
-const SPRING_STREAM_TOP := 1.55      # süzülen suyun başladığı yükseklik
+const SPRING_STREAM_TOP := 1.45      # süzülen suyun başladığı yükseklik (yarığın üst ucunun altı)
 const SPRING_STREAM_WIDTH := 0.1     # m
 const SPRING_STREAM_BOTTOM := 0.03
 const SPRING_STREAM_ROWS := 14
 const SPRING_STREAM_OFFSET := 0.04   # yüzeyden çıkıntı (m)
 const SPRING_PUDDLE_RADIUS := 0.6
+const SPRING_PUDDLE_FORWARD := 0.15  # birikinti merkezinin yarık ağzından ileri uzaklığı (m)
 const SPRING_PUDDLE_SEGMENTS := 20
 const SPRING_PUDDLE_LIFT := 0.03
 const SPRING_STREAM_SCROLL := 2.0    # süzülme hızı
@@ -287,3 +277,4 @@ const PLACE_SPRING_ROCK_CLEARANCE := 1.2 # SPRING_RADIUS üstüne eklenir
 const PLACE_REMOVE_RADIUS := 2.0
 const PLACE_ROT_STEP_DEG := 15.0
 const RECENT_MAX := 5
+const EXIT_FLUSH_FRAMES: int = 3 ## Cikista sahne bosaltildiktan sonra beklenen kare

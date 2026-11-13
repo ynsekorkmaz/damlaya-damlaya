@@ -22,7 +22,8 @@ const CURSOR_BG := Color(0.97, 0.88, 0.55, 0.85)
 
 const BOOK_SIZE: Vector2 = Vector2(1000.0, 600.0)
 const PAGE_PAD: float = 22.0
-const ROW_HEIGHT: float = 66.0
+const ROW_HEIGHT: float = 76.0
+const DESC_MAX_LINES: int = 2
 const COST_WIDTH: float = 128.0
 const TITLE_SIZE: int = 32
 const SECTION_SIZE: int = 24
@@ -349,6 +350,9 @@ func _add_entry(key: String, id: String, is_canal: bool) -> void:
 	texts.add_child(name_label)
 	var desc: Label = UiTheme.label(desc_tr, DESC_SIZE, ink)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.max_lines_visible = DESC_MAX_LINES
+	desc.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	texts.add_child(desc)
 	line.add_child(texts)
 	var cost: Label = UiTheme.label(cost_text, COST_SIZE, INK_DIM if locked else INK_GOLD)

@@ -3,6 +3,7 @@ extends RefCounted
 ## Sonuc: {"root": Node3D, "waters": Array[Node3D]} ("Water" ile baslayan, alt ortada orijinli su nesneleri).
 
 const Cfg = preload("res://scripts/player/arms_config.gd")
+const GraphicsConfig = preload("res://scripts/core/graphics_config.gd")
 
 
 static func build(id: String) -> Dictionary:
@@ -21,14 +22,48 @@ static func build(id: String) -> Dictionary:
 	return {"root": root, "waters": waters}
 
 
-## Kulp kuran ve kovasi olan modelin sagindaki el modeli, yoksa null.
-static func build_grip() -> Node3D:
+## hands_grip.glb'den istenen el (Cfg.GRIP_NODE_R "Grip" sag, Cfg.GRIP_NODE_L "GripL" sol); yoksa null.
+## Donen dugum yalnizca o mesh'i tasir; konum/donus/olcek Cfg.GRIPS ayarindan verilir. Malzeme cagirandadir.
+static func build_grip(node_name: String, pos: Vector3, rot_deg: Vector3, scale: float) -> Node3D:
 	if not ResourceLoader.exists(Cfg.GRIP_MODEL_PATH):
 		return null
 	var scene: PackedScene = load(Cfg.GRIP_MODEL_PATH)
 	if scene == null:
 		return null
-	return scene.instantiate() as Node3D
+	var root: Node3D = scene.instantiate() as Node3D
+	if root == null:
+		return null
+	var found: bool = false
+	for node: Node in root.find_children("*", "MeshInstance3D", true, false):
+		if node.name == node_name:
+			found = true
+		elif node.name == node_name.replace("Grip", "Sleeve"):
+			pass
+		else:
+			node.get_parent().remove_child(node)
+			node.free()
+	if not found:
+		root.free()
+		return null
+	root.name = "Grip_" + node_name
+	root.position = pos
+	root.rotation = Vector3(deg_to_rad(rot_deg.x), deg_to_rad(rot_deg.y), deg_to_rad(rot_deg.z))
+	root.scale = Vector3.ONE * scale
+	return root
+
+
+## Ten malzemesi (vertex color); held_vessel ve held_hammer ayni yolu kullanir.
+static func skin_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.albedo_color = Color.WHITE
+	mat.roughness = 0.85
+	return mat
+
+
+## Kaliteye gore ten kazanci: Orta/Yuksek'te tonemap teni solgunlastirir, carpan bunu dengeler.
+static func apply_skin_gain(mat: StandardMaterial3D, gain: float) -> void:
+	mat.albedo_color = Color(gain, gain * GraphicsConfig.SKIN_WARMTH.x, gain * GraphicsConfig.SKIN_WARMTH.y)
 
 
 static func _placeholder(root: Node3D, id: String) -> void:

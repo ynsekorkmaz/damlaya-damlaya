@@ -41,7 +41,29 @@ const POUR_LIFT: float = 0.04
 # ---- Aletler (tas, kova, cift kova, sirik) ----
 # Model yolu: assets/models/tools/<alet_id>.glb; yoksa kodla yer tutucu cizilir.
 const TOOL_MODEL_DIR: String = "res://assets/models/tools/"
-const GRIP_MODEL_PATH: String = "res://assets/models/hands_grip.glb"   # istege bagli: kova kulbunu tutan sag el
+const GRIP_MODEL_PATH: String = "res://assets/models/hands_grip.glb"   # sap kavrayan el: "Grip" (sag), "GripL" (sol, X aynasi)
+const GRIP_NODE_R: String = "Grip"
+const GRIP_NODE_L: String = "GripL"
+
+# Kavrayan eller: alet kimligi -> [{node, pos, rot (derece), scale}]; degerler aletin yerel uzayinda.
+# Model orijini kavrama noktasi, sap ekseni +Y, onkol +Z (kameraya) ve hafif asagi gelir (kol duz, onkol saptan ~65 derece).
+# Kol modeli ust kolun ortasinda biter; kesik uc kamera disinda kalir. Sirasiyla: sap kavrama modeli v2 (boru kol yok).
+# Sirikta (yoke) el yok. Cekic: cekicin yerel uzayi (held_hammer.gd modeli MODEL_SCALE ile olcekler).
+const GRIP_BUCKET_PITCH: float = 54.0     # kovada kolun asagi egimi (derece, kulp ekseni X etrafinda)
+const GRIP_BUCKET_YAW: float = 12.0       # kolun dis sapmasini azaltir (derece; sol elde ters isaret)
+const GRIPS: Dictionary = {
+	# Kova/cift kova: kulp ustten kavranir. Z 90 sapi yataya (X) yatirir, avuc asagi bakar; X egimi kolu asagi doldurur.
+	"bucket": [
+		{"node": "Grip", "pos": Vector3(0.0, 0.0, 0.0), "rot": Vector3(GRIP_BUCKET_PITCH, -GRIP_BUCKET_YAW, 90.0), "scale": 1.0},
+	],
+	"double_bucket": [
+		{"node": "Grip", "pos": Vector3(0.25, 0.0, 0.0), "rot": Vector3(GRIP_BUCKET_PITCH, -GRIP_BUCKET_YAW, 90.0), "scale": 1.0},
+		{"node": "GripL", "pos": Vector3(-0.25, 0.0, 0.0), "rot": Vector3(GRIP_BUCKET_PITCH, GRIP_BUCKET_YAW, -90.0), "scale": 1.0},
+	],
+	"hammer": [
+		{"node": "Grip", "pos": Vector3(0.02, 0.0, 0.04), "rot": Vector3(0.0, 0.0, 0.0), "scale": 1.0},
+	],
+}
 const TOOL_WATER_PREFIX: String = "Water"
 
 # Tas, ellerin yerel uzayinda (canagin alt orta noktasi). Eller hep avuc durusunda.
@@ -53,11 +75,11 @@ const CUP_TOOL_SCALE: float = 1.0
 # pour_pos: dokmede orijin kaymasi.
 const TOOL_POSES: Dictionary = {
 	"bucket": {
-		"pos": Vector3(0.30, -0.02, -0.55), "rot": Vector3(14.0, -8.0, 0.0), "scale": 0.9,
+		"pos": Vector3(0.30, -0.08, -0.58), "rot": Vector3(14.0, -8.0, 0.0), "scale": 0.9,
 		"swing": 5.0, "pour_pitch": -55.0, "pour_pos": Vector3(-0.04, 0.03, -0.06),
 	},
 	"double_bucket": {
-		"pos": Vector3(0.0, -0.02, -0.6), "rot": Vector3(14.0, 0.0, 0.0), "scale": 1.0,
+		"pos": Vector3(0.0, -0.08, -0.62), "rot": Vector3(14.0, 0.0, 0.0), "scale": 1.0,
 		"swing": 5.0, "pour_pitch": -40.0, "pour_pos": Vector3(0.0, 0.03, -0.05),
 	},
 	"yoke": {

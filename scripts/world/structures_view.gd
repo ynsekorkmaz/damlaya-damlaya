@@ -17,6 +17,7 @@ const RockSurface = preload("res://scripts/world/rock_surface.gd")
 const MULTI_KINDS: Array[String] = ["reeds", "shade_tree", "dew"]
 const MODEL_FILES: Dictionary = {
 	"reeds": "reeds.glb", "shade_tree": "tree_shade.glb", "dew": "grass_dew.glb", "spring": "fountain.glb",
+	"crack": "crack.glb", "rain_cloud": "cloud_pole.glb", "stream_mouth": "stream_mouth.glb",
 }
 const CHECK_INTERVAL: float = 0.5
 const BASIN_DELTA: float = 0.05
@@ -29,11 +30,15 @@ const CRACK_SEEP_LENGTH: float = 0.45
 const CRACK_SEEP_WIDTH: float = 0.07
 const RAY_UP: float = 4.0
 const RAY_DOWN: float = 3.0
-const CLOUD_HEIGHT: float = 3.35
+const CLOUD_HEIGHT: float = 3.05      ## bulutun yerden yüksekliği (direk tepesi ~2,5 m)
 const RAIN_DROPS: int = 12
 const RAIN_RADIUS: float = 0.55
-const FOUNTAIN_JET_HEIGHT: float = 0.9
-const FOUNTAIN_DROPS: int = 22
+const FOUNTAIN_SPLASH_HEIGHT: float = 0.22   ## havuza düşen suyun sıçrama yüksekliği
+const FOUNTAIN_DROPS: int = 14
+const FOUNTAIN_DEFAULT_SPOUT := Vector3(0.0, 0.72, 0.21)   ## glb'de "Spout" yoksa
+const FOUNTAIN_DEFAULT_BASIN := Vector3(0.0, 0.27, 0.27)   ## glb'de "Basin" yoksa
+const FOUNTAIN_BASIN_HALF_Z: float = 0.28
+const FOUNTAIN_BASIN_WIDTH: float = 0.72
 const CLOUD_SWAY: float = 0.12
 const CLOUD_SWAY_SPEED: float = 0.6
 
@@ -87,6 +92,8 @@ static func make_model(kind: String) -> Node3D:
 		if scene != null:
 			var inst: Node3D = scene.instantiate() as Node3D
 			if inst != null:
+				if kind == "rain_cloud" and inst.get_node_or_null("Cloud") == null:
+					inst.add_child(Placeholders.cloud())   # bulut kodda kalır; direk modelin parçası
 				return inst
 	match kind:
 		"reeds":
@@ -220,6 +227,7 @@ func _add_node_kind(kind: String, index: int, s: Dictionary, basin_r: float, bas
 			model.rotation.y = float(s["rot"])
 			var cloud: Node3D = model.get_node_or_null("Cloud") as Node3D
 			if cloud != null:
+				cloud.position.y = CLOUD_HEIGHT
 				_clouds.append({"node": cloud, "base": cloud.position, "phase": float(index) * 1.9})
 			var rain := WaterFx.make_instance(WaterFx.drops_mesh(RAIN_DROPS, RAIN_RADIUS, 100 + index),
 				WaterFx.drop_material(0, CLOUD_HEIGHT - 0.1, 0.0))
@@ -228,19 +236,7 @@ func _add_node_kind(kind: String, index: int, s: Dictionary, basin_r: float, bas
 		"spring":
 			model.position = Vector3(x, ground, z)
 			model.rotation.y = float(s["rot"])
-			var jet_mesh := CylinderMesh.new()
-			jet_mesh.top_radius = 0.025
-			jet_mesh.bottom_radius = 0.07
-			jet_mesh.height = FOUNTAIN_JET_HEIGHT
-			jet_mesh.radial_segments = 8
-			jet_mesh.rings = 1
-			var jet := WaterFx.make_instance(jet_mesh, WaterFx.water_material(-1))
-			jet.position = Vector3(0.0, 0.6 + FOUNTAIN_JET_HEIGHT * 0.5, 0.0)
-			model.add_child(jet)
-			var spray := WaterFx.make_instance(WaterFx.drops_mesh(FOUNTAIN_DROPS, 0.06, 200 + index),
-				WaterFx.drop_material(1, FOUNTAIN_JET_HEIGHT, 0.8))
-			spray.position = Vector3(0.0, 0.6, 0.0)
-			model.add_child(spray)
+			add_fountain_water(model, 200 + index)
 		"stream_mouth":
 			model.position = Vector3(x, ground, z)
 			model.rotation.y = float(s["rot"])
@@ -253,6 +249,35 @@ func _add_node_kind(kind: String, index: int, s: Dictionary, basin_r: float, bas
 		_:
 			model.position = Vector3(x, ground, z)
 			model.rotation.y = float(s["rot"])
+
+
+## Çeşme suyu: modeldeki "Spout"tan "Basin" yüzeyine düşen ince su, havuz yüzeyi ve sıçrama damlaları.
+## Döner: {jet: Node3D (düşen su + havuz yüzeyi), spray: MeshInstance3D}; ikisi de modele eklenir (kaynak kapanınca gizlenir).
+static func add_fountain_water(model: Node3D, seed_value: int) -> Dictionary:
+	var spout_node: Node3D = model.find_child("Spout", true, false) as Node3D
+	var basin_node: Node3D = model.find_child("Basin", true, false) as Node3D
+	var sp: Vector3 = spout_node.position if spout_node != null else FOUNTAIN_DEFAULT_SPOUT
+	var bp: Vector3 = basin_node.position if basin_node != null else FOUNTAIN_DEFAULT_BASIN
+	var jet := Node3D.new()
+	jet.name = "Jet"
+	var fall_mesh := CylinderMesh.new()
+	fall_mesh.top_radius = 0.028
+	fall_mesh.bottom_radius = 0.04
+	fall_mesh.height = maxf(sp.y - bp.y, 0.05)
+	fall_mesh.radial_segments = 8
+	fall_mesh.rings = 1
+	var fall := WaterFx.make_instance(fall_mesh, WaterFx.water_material(-1))
+	fall.position = Vector3(sp.x, (sp.y + bp.y) * 0.5, sp.z)
+	jet.add_child(fall)
+	var pool_pts := PackedVector3Array([
+		Vector3(bp.x, bp.y, bp.z - FOUNTAIN_BASIN_HALF_Z), Vector3(bp.x, bp.y, bp.z), Vector3(bp.x, bp.y, bp.z + FOUNTAIN_BASIN_HALF_Z)])
+	jet.add_child(WaterFx.make_instance(WaterFx.ribbon_mesh(pool_pts, FOUNTAIN_BASIN_WIDTH), WaterFx.water_material(1, true)))
+	model.add_child(jet)
+	var spray := WaterFx.make_instance(WaterFx.drops_mesh(FOUNTAIN_DROPS, 0.05, seed_value),
+		WaterFx.drop_material(1, FOUNTAIN_SPLASH_HEIGHT, 0.22))
+	spray.position = Vector3(sp.x, bp.y, sp.z)
+	model.add_child(spray)
+	return {"jet": jet, "spray": spray}
 
 
 ## Çatlak yüzeyi: büyük kayalarda görünür yüzey (RockSurface), kaynak kayasında fizik ışını; yoksa zemin.

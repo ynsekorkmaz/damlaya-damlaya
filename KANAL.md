@@ -20,7 +20,7 @@ Pınar suyu, pınar satırındaki ilk sütun parçasının batı ağzı varsa gi
 | wye | Y kanal | gövde W; kollar N, S | 60 | 400 |
 | cross | Artı kanal | N, E, S, W (hepsi bağlı) | 60 | 600 |
 | gate | Savak | E, W; kapalıyken bağlantı yok | 90 | 900 |
-| mill | Değirmen | E, W | 600 (ayrı artış) | 1.200 |
+| mill | Değirmen | E, W | 600 (ayrı artış) | 2.500 |
 | aqueduct | Su kemeri | E-W ve N-S, birbirine bağlı değil | 150 | 3.000 |
 | reservoir | Biriktirme havuzu | N, E, S, W (hepsi bağlı) | 400 | 6.000 |
 
@@ -31,10 +31,10 @@ Y kanalda gövde iki kola bağlıdır, ama bir koldan gövdeye girildiyse diğer
 | Malzeme | Sızıntı (hücre başına) | Fiyat çarpanı | Açma |
 |---|---|---|---|
 | earth (Toprak) | 0,05 | 1 | 0 |
-| wood (Ahşap) | 0,03 | 2,5 | 800 |
-| stone (Taş) | 0,012 | 6 | 8.000 |
+| wood (Ahşap) | 0,03 | 2,5 | 2.500 |
+| stone (Taş) | 0,012 | 6 | 30.000 |
 
-Taş kaplama seviyesi 0..3 sızıntıyı [1,0; 0,7; 0,4; 0,16] ile çarpar (toprakta 0,05 / 0,035 / 0,02 / 0,008). Y kanal ayrıca yarı sızıntıdır. Genişlik seviyesi 0..4: çıkış başına kapasite `80 * 2^seviye`. Genişlik maliyeti `floor(3000*4^seviye)`, kaplama maliyeti `floor(5000*4^seviye)`.
+Taş kaplama seviyesi 0..3 sızıntıyı [1,0; 0,7; 0,4; 0,16] ile çarpar (toprakta 0,05 / 0,035 / 0,02 / 0,008). Y kanal ayrıca yarı sızıntıdır. Genişlik seviyesi 0..4: çıkış başına kapasite `80 * 2^seviye`. Genişlik maliyeti `floor(12000*4^seviye)`, kaplama maliyeti `floor(15000*4^seviye)`.
 
 ## Akış
 
@@ -50,7 +50,7 @@ Bileşen (bağlı düğüm kümesi) başına: kapasite = çıkış sayısı x ç
 
 ## Varsayılan düzen
 
-14 sütun x 10 satır, göl doğuda. Pınarlar batıda: A satır 4 (akış 60, açma 4.000), B satır 1 (180, 30.000), C satır 8 (480, 200.000). Eski 8x5 düzeni (A 2, B 0, C 4) `Pieces.LEGACY_*` ile kurulur.
+14 sütun x 10 satır, göl doğuda. Pınarlar batıda: A satır 4 (akış 80, açma 6.000), B satır 1 (240, 50.000), C satır 8 (800, 150.000). Eski 8x5 düzeni (A 2, B 0, C 4; akışlar 60, 180, 480; açma 4.000, 30.000, 200.000) `Pieces.LEGACY_*` ile kurulur ve altı test senaryosu aynen onunla geçer; denge ayarı yalnızca oyun varsayılanlarına (`DEFAULT_*`) dokunur.
 
 ## Oyuna bağlanış
 

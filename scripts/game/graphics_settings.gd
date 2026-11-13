@@ -6,13 +6,17 @@ extends Node
 
 signal quality_changed(level: int)
 signal show_fps_changed(on: bool)
+signal sound_changed(on: bool, volume: float)
 
 const Palette = preload("res://scripts/core/palette.gd")
 const GraphicsConfig = preload("res://scripts/core/graphics_config.gd")
+const AudioConfig = preload("res://scripts/core/audio_config.gd")
 const TerrainBuilder = preload("res://scripts/world/terrain_builder.gd")
 
 const KEY_QUALITY: String = "quality"
 const KEY_SHOW_FPS: String = "show_fps"
+const KEY_SOUND_ON: String = "sound_on"
+const KEY_VOLUME: String = "volume"
 const ARG_QUALITY: String = "--quality="
 const ARG_NO_SAVE: String = "--no-save"
 const COMPAT_METHOD: String = "gl_compatibility"
@@ -20,6 +24,8 @@ const COMPAT_METHOD: String = "gl_compatibility"
 var skin_gain: float = 1.0   # held_vessel.gd okur
 var level: int = GraphicsConfig.DEFAULT_LEVEL
 var show_fps: bool = false
+var sound_on: bool = AudioConfig.DEFAULT_SOUND_ON
+var volume: float = AudioConfig.DEFAULT_VOLUME   # ana ses düzeyi 0..1 (ses ayarı aynı dosyada durur)
 
 var _environment: Environment
 var _sun: DirectionalLight3D
@@ -70,6 +76,23 @@ func set_show_fps(on: bool) -> void:
 		return
 	show_fps = on
 	show_fps_changed.emit(on)
+	_save_file()
+
+
+func set_sound_on(on: bool) -> void:
+	if on == sound_on:
+		return
+	sound_on = on
+	sound_changed.emit(sound_on, volume)
+	_save_file()
+
+
+func set_volume(v: float) -> void:
+	var clamped: float = AudioConfig.clamp_volume(v)
+	if is_equal_approx(clamped, volume):
+		return
+	volume = clamped
+	sound_changed.emit(sound_on, volume)
 	_save_file()
 
 
@@ -180,12 +203,16 @@ func _load_file() -> void:
 		_saved_level = level
 	if data.get(KEY_SHOW_FPS) is bool:
 		show_fps = data[KEY_SHOW_FPS]
+	if data.get(KEY_SOUND_ON) is bool:
+		sound_on = data[KEY_SOUND_ON]
+	if data.get(KEY_VOLUME) is float:
+		volume = AudioConfig.clamp_volume(float(data[KEY_VOLUME]))
 
 
 func _save_file() -> void:
 	if not _file_enabled:
 		return
-	var data: Dictionary = {KEY_QUALITY: _saved_level, KEY_SHOW_FPS: show_fps}
+	var data: Dictionary = {KEY_QUALITY: _saved_level, KEY_SHOW_FPS: show_fps, KEY_SOUND_ON: sound_on, KEY_VOLUME: volume}
 	var file: FileAccess = FileAccess.open(GraphicsConfig.SETTINGS_TMP_PATH, FileAccess.WRITE)
 	if file == null:
 		push_warning("Ayar dosyası yazılamadı: %s" % error_string(FileAccess.get_open_error()))

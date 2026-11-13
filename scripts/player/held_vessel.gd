@@ -43,10 +43,7 @@ func _ready() -> void:
 	_model.scale = Vector3.ONE * Cfg.ARM_SCALE
 	_rig.add_child(_model)
 
-	_skin_mat = StandardMaterial3D.new()
-	_skin_mat.vertex_color_use_as_albedo = true
-	_skin_mat.albedo_color = Color.WHITE
-	_skin_mat.roughness = 0.85
+	_skin_mat = ToolModels.skin_material()
 	_water_mat = StandardMaterial3D.new()
 	_water_mat.albedo_color = Cfg.WATER
 	_water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -85,7 +82,7 @@ func _bind_quality() -> void:
 
 func _on_quality_changed(_level: int, settings: Node) -> void:
 	var gain: float = float(settings.get("skin_gain"))
-	_skin_mat.albedo_color = Color(gain, gain * GraphicsConfig.SKIN_WARMTH.x, gain * GraphicsConfig.SKIN_WARMTH.y)
+	ToolModels.apply_skin_gain(_skin_mat, gain)
 
 
 ## Seviye basina alet modeli (glb ya da yer tutucu) kurulur; hepsi gizli baslar.
@@ -108,10 +105,9 @@ func _build_tools() -> void:
 		else:
 			root.scale = Vector3.ONE * float(_pose(id)["scale"])
 			_rig.add_child(root)
-			if id == "bucket":
-				var grip: Node3D = ToolModels.build_grip()
+			for spec: Dictionary in Cfg.GRIPS.get(id, []):
+				var grip: Node3D = ToolModels.build_grip(String(spec["node"]), spec["pos"], spec["rot"], float(spec["scale"]))
 				if grip != null:
-					grip.name = "Grip"
 					for node: Node in grip.find_children("*", "MeshInstance3D", true, false):
 						(node as MeshInstance3D).material_override = _skin_mat
 					root.add_child(grip)

@@ -46,3 +46,20 @@ Sırık, ip, dükkân yapısı, tente, sandık ve varil Blender'da modellendi (t
 | Bark Willow (kabuk) | bark_willow, https://polyhaven.com/a/bark_willow | Poly Haven (yazar bilgisi sayfada) | CC0 | 2026-11-12 | assets/models/build/tree_shade.glb (bark_willow_diff_1k.jpg) | 1k diffuse |
 
 Yaprak ve kamış dokuları betikle üretildi (kendi işimiz, lisans sorunu yok). Kanal parçaları, değirmen, savak, su kemeri, havuz, gölge ağacı ve kamış Blender'da modellendi.
+
+Kayalar, kaynak kayası ve pasif kaynak modelleri (Poly Haven, CC0; lisans https://polyhaven.com/license ve varlıkların API bilgisinden doğrulandı; ham dosyalar depoda yok). İndirme tarihi 2026-11-13; yalnızca 1k gltf, .bin ve diffuse (base color) dokusu alındı, toplam yaklaşık 17 MB. Modeller Blender'da 800 üçgene indirildi (tools/blender/make_rocks.py); kaynak kayası bu glb'lerden kuruldu (tools/blender/make_spring_rock.py).
+
+| Ad | Poly Haven kimliği ve sayfa | Yazar (API) | Lisans | İndirme tarihi | Kullanılan dosya | Çözünürlük |
+|---|---|---|---|---|---|---|
+| Namaqualand Boulder 02 | namaqualand_boulder_02, https://polyhaven.com/a/namaqualand_boulder_02 | Rico Cilliers (model), Greg Zaal (fotoğraf) | CC0 | 2026-11-13 | assets/models/rocks/rock_1.glb | 1k diffuse, 800 üçgen |
+| Namaqualand Boulder 03 | namaqualand_boulder_03, https://polyhaven.com/a/namaqualand_boulder_03 | Jenelle van Heerden (model), Dario Barresi (fotoğraf) | CC0 | 2026-11-13 | rock_2.glb; spring_rock.glb (arka kaya) | 1k diffuse, 800 üçgen |
+| Namaqualand Boulder 04 | namaqualand_boulder_04, https://polyhaven.com/a/namaqualand_boulder_04 | Jenelle van Heerden | CC0 | 2026-11-13 | rock_3.glb; spring_rock.glb (sol kaya) | 1k diffuse, 800 üçgen |
+| Namaqualand Boulder 05 | namaqualand_boulder_05, https://polyhaven.com/a/namaqualand_boulder_05 | Jenelle van Heerden (model), Dario Barresi (fotoğraf) | CC0 | 2026-11-13 | rock_4.glb | 1k diffuse, 800 üçgen |
+| Namaqualand Boulder 06 | namaqualand_boulder_06, https://polyhaven.com/a/namaqualand_boulder_06 | Jenelle van Heerden (model), Greg Zaal (fotoğraf) | CC0 | 2026-11-13 | rock_5.glb; spring_rock.glb (sağ kaya) | 1k diffuse, 800 üçgen |
+| Rock 07 | rock_07, https://polyhaven.com/a/rock_07 | Jenelle van Heerden | CC0 | 2026-11-13 | rock_6.glb; spring_rock.glb (ön taş) | 1k diffuse, 800 üçgen |
+
+Çeşme, çiğ otu, bulut direği, dere ağzı, çatlak ve kova tutan el Blender'da modellendi (tools/blender/make_pasif.py, make_hands_grip.py). Çeşme, dere ağzı ve bulut direği kendi dokularını depodaki assets/textures/canal/stone.jpg (Old Stone Wall) ve wood.jpg (Brown Planks 03) dosyalarından gömer; çiğ otu dokusu betikle üretilir. hands_grip.glb de MPFB taban ağından türetilmiştir (hands.glb ile aynı lisans notu).
+
+Balık ve kuş modelleri (assets/models/life/fish.glb, bird.glb) Blender'da sıfırdan modellendi (tools/blender/make_life.py); dışarıdan varlık ya da doku indirilmedi, yalnızca vertex color kullanılır. Sol el, gömlek kolları ve hands_grip.glb'ye eklenen "GripL" nesnesi make_hands_grip_mirror.py ile üretildi (2026-11-13; kaynak yine MPFB taban ağı, notu yukarıda).
+
+Ses: oyundaki tüm sesler kodla üretilir (scripts/audio/sound_bank.gd); projede üçüncü taraf ses dosyası yoktur, bu nedenle ses için lisans satırı gerekmez (2026-11-13). Kenney ses paketlerinin (CC0) sayfaları otomatik indirmeye doğrudan bağlantı vermediğinden indirilmedi.

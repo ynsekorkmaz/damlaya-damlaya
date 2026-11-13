@@ -1,7 +1,7 @@
 extends Node3D
 ## Sahneyi kodla kurar. `--screenshot=<yol>` verilirse ölçüm yapıp çıkar.
 ## Ek argümanlar: --quality=low|medium|high (ayar dosyasına yazmadan), --no-save, --open-menu, --open-shop, --open-upgrades[=aletler|su|kaynaklar|kayip|kanal],
-## --debug-drops/money/tool/carried/canal/hammer, --debug-build=kanal|bitki, --equip-hammer, --open-book[=kanal|bitki|kaynak],
+## --debug-drops/money/tool/carried/canal/hammer, --debug-build=kanal|bitki|kemer, --equip-hammer, --open-book[=kanal|bitki|kaynak],
 ## --select-build=<yapi_id>, --camera-y=<m> (kamera yuksekligi). --equip-hammer / --select-build ekran goruntusunde fare yakalanmis gibi calisir.
 
 const Config = preload("res://scripts/core/config.gd")
@@ -53,6 +53,11 @@ func _ready() -> void:
 
 	lake.call("bind", game, player)
 	lake.call("connect_quality", settings)
+
+	var life_view := Node3D.new()
+	life_view.set_script(preload("res://scripts/world/life_view.gd"))
+	add_child(life_view)
+	life_view.call("bind", game, lake, settings)
 
 	var vessel := Node3D.new()
 	vessel.set_script(preload("res://scripts/player/held_vessel.gd"))
@@ -129,6 +134,7 @@ func _ready() -> void:
 	debug_hud.set_script(preload("res://scripts/ui/debug_hud.gd"))
 	debug_hud.set("settings", settings)
 	debug_hud.set("equipment", equipment)
+	debug_hud.set("player", player)
 	add_child(debug_hud)
 
 	var pause_menu := CanvasLayer.new()
@@ -154,6 +160,12 @@ func _ready() -> void:
 	manager.set("book", book)
 	manager.set("equipment", equipment)
 	add_child(manager)
+
+	var audio := Node.new()
+	audio.set_script(preload("res://scripts/audio/audio_manager.gd"))
+	add_child(audio)
+	audio.call("bind", game, player, equipment, lake, settings, [[shop_panel, "panel"], [upgrades_panel, "panel"], [pause_menu, "panel"], [book, "book"]])
+	build_controller.set("audio", audio)
 
 	var st: GameState = game.get("state")
 	var cam_at := Vector2.INF
@@ -270,6 +282,10 @@ func _apply_debug_build(game: Node, st: GameState, scenario: String) -> void:
 		net.call("open_spring", "A")
 		net.call("open_spring", "B")
 		_build_sample_network(net)
+	elif scenario == "kemer":
+		# Yalniz A pinari acik: su kemerinin dogu-bati hatti akar, kuzey-guney hatti kurudur.
+		(game.get("canal") as Object).call("open_spring", "A")
+		_build_aqueduct_sample(game.get("canal"))
 	elif scenario == "bitki":
 		for kind: String in ["reeds", "shade_tree"]:
 			if not st.unlocked_structures.has(kind):
@@ -305,6 +321,14 @@ func _build_sample_network(net: Object) -> void:
 		net.call("place", e[0], e[1], e[2], e[3], e[4])
 
 
+## A pinarindan (satir 4) goele duz hat, 3. sutunda su kemeri; kemeri dik kesen hat pinara bagli degil.
+func _build_aqueduct_sample(net: Object) -> void:
+	for col in range(14):
+		net.call("place", col, 4, "aqueduct" if col == 3 else "straight", 0, "wood")
+	for row in [2, 3, 5, 6]:
+		net.call("place", 3, row, "straight", 1, "wood")
+
+
 func _parse_xz(text: String) -> Vector2:
 	var parts: PackedStringArray = text.split(",")
 	if parts.size() != 2:
@@ -332,4 +356,15 @@ func _capture_and_quit(path: String) -> void:
 	var img: Image = get_viewport().get_texture().get_image()
 	var err: int = img.save_png(path)
 	print("Goruntu kaydedildi: ", path, " (hata kodu ", err, ")")
-	get_tree().quit()
+	await _free_scene_and_quit()
+
+
+## Cikista kaynaklarin serbest kalmasi icin once sahne agaci bosaltilir, birkac kare beklenir.
+func _free_scene_and_quit() -> void:
+	var tree: SceneTree = get_tree()
+	for child: Node in get_children():
+		remove_child(child)
+		child.queue_free()
+	for i in range(Config.EXIT_FLUSH_FRAMES):
+		await tree.process_frame
+	tree.quit()

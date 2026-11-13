@@ -17,13 +17,15 @@ static func _connect(adj: Dictionary, a: int, b: int) -> void:
 	adj[b].append(a)
 
 
-## Sonuc: {input, delivered, leaked, overflow, wasted, flowing, flow_dir, per_spring}
+## Sonuc: {input, delivered, leaked, overflow, wasted, flowing, flow_dir, per_spring, flowing_nodes}
+## flowing_nodes: akan hucre (Vector2i) -> o hucrede akan dugumlerin agiz yonlari (dunya yonu N, E, S, W; liste).
+## Su kemerinde yalnizca akan hattin agizlari yer alir.
 static func compute(net) -> Dictionary:
 	var cols: int = net.cols
 	var rows: int = net.rows
 	var result: Dictionary = {
 		"input": 0.0, "delivered": 0.0, "leaked": 0.0, "overflow": 0.0, "wasted": 0.0,
-		"flowing": [], "flow_dir": {}, "per_spring": {},
+		"flowing": [], "flow_dir": {}, "per_spring": {}, "flowing_nodes": {},
 	}
 
 	# Dugumler ve kenarlar
@@ -31,6 +33,7 @@ static func compute(net) -> Dictionary:
 	var port_node: Dictionary = {}
 	var cell_pos: Dictionary = {}
 	var cell_piece: Dictionary = {}
+	var cell_nodes: Dictionary = {}
 	var hubs: Dictionary = {}
 	for row in range(rows):
 		for col in range(cols):
@@ -54,6 +57,7 @@ static func compute(net) -> Dictionary:
 			port_node[idx] = pn
 			cell_pos[idx] = Vector2i(col, row)
 			cell_piece[idx] = p
+			cell_nodes[idx] = nodes
 	for idx in port_node:
 		var pn: Array[int] = port_node[idx]
 		for dir in [Pieces.E, Pieces.S]:
@@ -183,6 +187,7 @@ static func compute(net) -> Dictionary:
 	var toward_exit: Dictionary = _toward_exit(adj, is_exit)
 	var flowing: Array[Vector2i] = []
 	var flow_dir: Dictionary = result["flow_dir"]
+	var flowing_nodes: Dictionary = result["flowing_nodes"]
 	for idx in cell_piece:
 		var best_node: int = -1
 		var best_weight: float = -1.0
@@ -197,6 +202,14 @@ static func compute(net) -> Dictionary:
 		if best_node < 0:
 			continue
 		flowing.append(cell_pos[idx])
+		var mouths: Array[int] = []
+		var groups: Array = cell_nodes[idx]
+		for k in range(groups.size()):
+			var gn: int = idx * MAX_NODES + k
+			if comp_of.has(gn) and comp_has_flow[comp_of[gn]]:
+				for d in groups[k]:
+					mouths.append(int(d))
+		flowing_nodes[cell_pos[idx]] = mouths
 		if node_dir.has(best_node):
 			flow_dir[cell_pos[idx]] = node_dir[best_node]
 		else:

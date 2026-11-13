@@ -74,10 +74,10 @@ func test_purchases() -> void:
 	g.state.money = 10000.0
 	check(not g.buy_tool() and g.state.tool_level == 0 and g.state.money == 10000.0, "kilitsiz alet dukkanda alinmaz")
 	check(not g.buy_hammer() and not g.upgrade_tool("cup") and not g.upgrade_tool("yok"), "kilitsiz cekic ve sahipsiz alet")
-	check(g.unlock_tool() and g.state.tool_unlocked == 1 and absf(g.state.money - 9992.0) < 1e-9, "alet kilidi acma (8)")
-	check(g.buy_tool() and g.state.tool_level == 1 and absf(g.state.money - (9992.0 - Cfg.TOOLS[1]["cost"])) < 1e-9, "alet alimi")
+	check(g.unlock_tool() and g.state.tool_unlocked == 1 and absf(g.state.money - 9994.0) < 1e-9, "alet kilidi acma (6)")
+	check(g.buy_tool() and g.state.tool_level == 1 and absf(g.state.money - (9994.0 - Cfg.TOOLS[1]["cost"])) < 1e-9, "alet alimi")
 	var before: float = g.state.money
-	check(g.upgrade_tool("cup") and g.state.tool_upgrades["cup"] == 1 and absf(g.state.money - (before - 10.0)) < 1e-9, "alet kapasite yukseltme")
+	check(g.upgrade_tool("cup") and g.state.tool_upgrades["cup"] == 1 and absf(g.state.money - (before - 8.0)) < 1e-9, "alet kapasite yukseltme")
 	check(g.buy_rate() and g.state.rate_level == 1, "oran alimi")
 	check(g.unlock_source("crack"), "kaynak kilidi")
 	g.state.hammer_owned = true
@@ -104,13 +104,13 @@ func test_canal_wrappers() -> void:
 	check(not g.unlock_canal(), "kanal kilidi bir kez")
 	var money: float = g.state.money
 	check(g.open_spring("A") and g.canal.is_spring_open("A"), "pinar acilir")
-	check(absf(g.state.money - (money - 4000.0)) < 1e-6, "pinar parayi duser")
-	check(not g.open_spring("A") and absf(g.state.money - (money - 4000.0)) < 1e-6, "acik pinar tekrar acilmaz, para ayni")
+	check(absf(g.state.money - (money - 6000.0)) < 1e-6, "pinar parayi duser")
+	check(not g.open_spring("A") and absf(g.state.money - (money - 6000.0)) < 1e-6, "acik pinar tekrar acilmaz, para ayni")
 	check(not g.open_spring("Z"), "bilinmeyen pinar")
 	money = g.state.money
-	check(g.upgrade_canal_width() and g.canal.width_level == 1 and absf(g.state.money - (money - 3000.0)) < 1e-6, "genis kanal")
+	check(g.upgrade_canal_width() and g.canal.width_level == 1 and absf(g.state.money - (money - 12000.0)) < 1e-6, "genis kanal")
 	money = g.state.money
-	check(g.upgrade_canal_lining() and g.canal.lining_level == 1 and absf(g.state.money - (money - 5000.0)) < 1e-6, "tas kaplama")
+	check(g.upgrade_canal_lining() and g.canal.lining_level == 1 and absf(g.state.money - (money - 15000.0)) < 1e-6, "tas kaplama")
 	check(bought == ["canal_unlock:canal", "canal_spring:A", "canal_width:width", "canal_lining:lining"], "kanal sinyalleri (%s)" % str(bought))
 	g.state.money = 100.0
 	check(not g.open_spring("B") and not g.canal.is_spring_open("B") and g.state.money == 100.0, "para yetmezse pinar acilmaz")

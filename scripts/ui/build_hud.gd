@@ -24,6 +24,7 @@ var game: Node
 var equipment: Node
 var player: Node3D
 
+var _slot_row: HBoxContainer
 var _slot_panels: Array[PanelContainer] = []
 var _slot_names: Array[Label] = []
 var _slot_state: Array[int] = [-1, -1]
@@ -69,6 +70,7 @@ func _build_slots() -> void:
 	row.offset_bottom = -(MARGIN + SLOT_ABOVE)
 	row.add_theme_constant_override("separation", 8)
 	add_child(row)
+	_slot_row = row
 	var labels: Array[String] = ["Su", "Çekiç"]
 	for i in range(2):
 		var panel := PanelContainer.new()
@@ -125,6 +127,8 @@ func _refresh_slots() -> void:
 		return
 	var slot: int = equipment.get("slot")
 	var owned: bool = bool(equipment.call("hammer_owned"))
+	if _slot_row.visible != owned:
+		_slot_row.visible = owned # tek yuva varken (çekiç yok) gösterge gizli
 	var wanted: Array[int] = [1 if slot == 0 else 0, (1 if slot == 1 else 0) if owned else 2]
 	for i in range(2):
 		if _slot_state[i] == wanted[i]:

@@ -10,6 +10,7 @@ signal stage_changed(index: int)
 signal prompt_changed(text: String)
 signal purchased(kind: String, id: String)
 signal shop_requested
+signal purchase_denied(kind: String, id: String) ## Satın alma başarısız (para ya da koşul yetmedi); ses için
 signal structures_changed ## Kanal ağı ya da serbest yapılar değişti (kur, sök, döndür, savak)
 
 const GameState = preload("res://scripts/core/game_state.gd")
@@ -36,6 +37,7 @@ var _save_enabled: bool = true
 var _save_timer: float = 0.0
 var _flow_cache: Dictionary = {}
 var _last_stage: int = 0
+var _primed: bool = false ## İlk karede aşama yalnızca eşitlenir; açılışta aşama değişimi sayılmaz
 
 
 func _ready() -> void:
@@ -54,7 +56,10 @@ func setup(use_save: bool) -> void:
 func _process(delta: float) -> void:
 	Economy.tick(state, delta, _canal_delivered())
 	var stage: int = Economy.stage_index(state)
-	if stage != _last_stage:
+	if not _primed:
+		_primed = true
+		_last_stage = stage
+	elif stage != _last_stage:
 		_last_stage = stage
 		stage_changed.emit(stage)
 	if _save_enabled:
@@ -194,6 +199,7 @@ func upgrade_canal_lining() -> bool:
 
 func _finish_purchase(ok: bool, kind: String, id: String) -> bool:
 	if not ok:
+		purchase_denied.emit(kind, id)
 		return false
 	purchased.emit(kind, id)
 	save()

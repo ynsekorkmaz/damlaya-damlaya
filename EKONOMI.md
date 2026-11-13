@@ -7,7 +7,7 @@ Tüm sayılar `scripts/core/economy_config.gd` ve `build_config.gd` içinde; man
 - Kaynaktan su doldur (kapasite 1,5 sn'de dolar), çukura dök.
 - Göle ulaşan her damla (elle, pasif kaynak, kanal) o anki oranla paraya çevrilir: `para += damla / damlaBaşınaPara`.
 - Satın alma üç yerde: Tab ile açılan Geliştirmeler ekranında kilitler ve yükseltmeler; dükkân tezgâhında (E) elle tutulan aletler ve çekiç; dünyada çekiçle (Q) yapılar (kanal parçaları, kamış, gölge ağacı, pasif kaynaklar). Göl aşama aşama büyür.
-- Oyun sonu: toplam damla >= 2.000.000.
+- Oyun sonu: toplam damla >= 9.000.000 (en iyi oyuncu için yaklaşık 3 saat; ayar ve ölçüm için DENGE.md).
 
 ## Taşıma aletleri (sırayla)
 
@@ -16,10 +16,10 @@ Tüm sayılar `scripts/core/economy_config.gd` ve `build_config.gd` içinde; man
 | Alet | Kapasite | Kilit | Dükkân | Yükseltme (taban) |
 |---|---|---|---|---|
 | Avuç | 5 | açık | bedava | 5 |
-| Tas | 15 | 8 | 12 | 10 |
-| Kova | 50 | 60 | 90 | 70 |
-| Çift kova | 140 | 450 | 700 | 500 |
-| Sırık ve dört kova | 400 | 4.000 | 6.000 | 4.500 |
+| Tas | 12 | 6 | 10 | 8 |
+| Kova | 30 | 40 | 60 | 40 |
+| Çift kova | 120 | 700 | 1.200 | 600 |
+| Sırık ve dört kova | 300 | 8.000 | 15.000 | 8.000 |
 
 - Kapasite yükseltmesi: her alet için ayrı, en fazla 5 seviye; her seviye taban kapasitenin %20'sini ekler (5 seviyede 2 kat). Maliyet: `floor(taban * 1,8^seviye)`. Yalnızca sahip olunan alet yükseltilir.
 - Doldurma süresi aynı kalır: kapasite 1,5 sn'de dolar.
@@ -29,10 +29,10 @@ Tüm sayılar `scripts/core/economy_config.gd` ve `build_config.gd` içinde; man
 | Seviye | Damla / 1 para | Maliyet |
 |---|---|---|
 | 0 | 5 | bedava |
-| 1 | 4 | 60 |
-| 2 | 3 | 600 |
-| 3 | 2 | 8.000 |
-| 4 | 1 | 120.000 |
+| 1 | 4 | 100 |
+| 2 | 3 | 5.000 |
+| 3 | 2 | 50.000 |
+| 4 | 1 | 450.000 |
 
 ## Çekiç
 
@@ -46,15 +46,15 @@ Yerleştirme koşulları sırayla: çekiç, kilit (Geliştirmeler'den), azami ad
 
 ### Pasif kaynaklar
 
-Önce kilit açılır: `floor(ilkMaliyet * 0,5)` (çatlak 7, çiğ otu 50, bulut direği 550, çeşme 6.000, dere ağzı 75.000). Her adet çekiçle kurulan bir yapıdır; Tab'dan adet alınmaz. Adet maliyeti: `floor(ilkMaliyet * 1,15^adet)`.
+Önce kilit açılır: `floor(ilkMaliyet * 0,5)` (çatlak 7, çiğ otu 50, bulut direği 3.500, çeşme 55.000, dere ağzı 350.000). Her adet çekiçle kurulan bir yapıdır; Tab'dan adet alınmaz. Adet maliyeti: `floor(ilkMaliyet * 1,3^adet)`.
 
 | Yapı (id) | Damla/sn | İlk maliyet |
 |---|---|---|
 | Çatlak (crack) | 0,5 | 15 |
 | Çiğ otu (dew) | 3 | 100 |
-| Bulut direği (rain_cloud) | 20 | 1.100 |
-| Çeşme (spring) | 120 | 12.000 |
-| Dere ağzı (stream_mouth) | 700 | 150.000 |
+| Bulut direği (rain_cloud) | 20 | 7.000 |
+| Çeşme (spring) | 100 | 110.000 |
+| Dere ağzı (stream_mouth) | 240 | 700.000 |
 
 ### Kamış ve gölge ağacı
 
@@ -74,7 +74,7 @@ Her biri kaybı 1 puan düşürür; en fazla 7 tanesi sayılır. 7'den sonra da 
 | Kalem | Maliyet | Puan |
 |---|---|---|
 | Kaya yatağı (yükseltme) | 200 | 8 |
-| Kil taban (yükseltme) | 400.000 | 5 |
+| Kil taban (yükseltme) | 40.000 | 5 |
 | Kamış öbekleri (yapı, 7'ye kadar) | 60'tan başlar | 7 |
 | Gölge ağaçları (yapı, 7'ye kadar) | 700'den başlar | 7 |
 
@@ -84,8 +84,8 @@ Hepsi olunca kayıp %3.
 
 Kanal ağının mantığı `canal_network.gd` ve `canal_network_flow.gd`'de, fiyatlar ve kilit maliyetleri `canal_pieces.gd`'de (bkz. KANAL.md); ödeme ekonomi parasından yapılır. Oyun artık yalnızca bu ağı kullanır.
 
-- Kanal sistemi kilidi: 300 para; kilit açılana kadar bölüm yalnızca toplam damla >= 2.000 olunca görünür.
-- Kilit açılınca Tab'ın Kanal bölümü dört alt başlıkta: Pınarlar (A 4.000, B 30.000, C 200.000), Yükseltmeler (geniş kanal 4 seviye, taş kaplama 3 seviye), Parçalar (dirsek 50, T 150, Y 400, artı 600, savak 900, değirmen 1.200, su kemeri 3.000, biriktirme havuzu 6.000), Malzemeler (ahşap 800, taş 8.000). Düz kanal ve toprak baştan açık.
+- Kanal sistemi kilidi: 300 para; kilit açılana kadar bölüm yalnızca toplam damla >= 2.000 olunca görünür (en iyi oyuncuda yaklaşık 11. dk).
+- Kilit açılınca Tab'ın Kanal bölümü dört alt başlıkta: Pınarlar (A 6.000, B 50.000, C 150.000), Yükseltmeler (geniş kanal 4 seviye, 12.000'den; taş kaplama 3 seviye, 15.000'den), Parçalar (dirsek 50, T 150, Y 400, artı 600, savak 900, değirmen 2.500, su kemeri 3.000, biriktirme havuzu 6.000), Malzemeler (ahşap 2.500, taş 30.000). Düz kanal ve toprak baştan açık.
 - Parça ve malzemeler çekiçle yerleştirilir (`can_place_canal` / `place_canal`); kilitli parça ya da malzeme yerleştirilemez.
 - Kanal teslimatı her karede göle eklenir (kayıp uygulanmaz).
 
@@ -95,12 +95,12 @@ Kanal ağının mantığı `canal_network.gd` ve `canal_network_flow.gd`'de, fiy
 |---|---|---|---|---|
 | Damla | 0 | 0 | 0 | yok |
 | Çukur | 50 | 0 | 0 | yok |
-| Havuz | 1.000 | 2 | 0 | var |
-| Göl | 25.000 | 5 | 3 | var |
-| Büyük göl | 400.000 | 9 | 6 | var |
+| Havuz | 4.000 | 2 | 0 | var |
+| Göl | 200.000 | 5 | 3 | var |
+| Büyük göl | 3.500.000 | 9 | 6 | var |
 
 - `stage_progress`: aşama içinde `ln(1+toplam)` ile doğrusal 0..1 (son aşama oyun sonuna doğru).
-- `lake_fill`: `ln(1+toplam) / ln(1+400.000)`, 0..1, süreklidir; son eşikte 1 olur ve orada kalır.
+- `lake_fill`: `ln(1+toplam) / ln(1+3.500.000)`, 0..1, süreklidir; son eşikte 1 olur ve orada kalır.
 
 ## Görünürlük
 

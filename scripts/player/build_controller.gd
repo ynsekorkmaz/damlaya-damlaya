@@ -37,6 +37,7 @@ var equipment: Node
 var lake: Node
 var hud: Node
 var hammer_view: Node
+var audio: Node ## audio_manager (isteğe bağlı): yerleştirilemez sesi
 
 var looked_cell: Vector2i = CanalField.NONE
 var looked_gate: bool = false
@@ -361,6 +362,8 @@ func _process_canal(active: bool) -> void:
 			_ck_version = -1
 			if hammer_view != null:
 				hammer_view.call("swing")
+		elif not _ck_ok and pressed:
+			_play_denied()
 
 
 static func _material_name(material: String) -> String:
@@ -420,11 +423,18 @@ func _process_free(active: bool) -> void:
 	_activate_preview(key)
 	_apply_ok(node, _fk_ok)
 	_show_highlight_disc(pos, 1 if _fk_ok else 0, kind == "crack")
-	if active and Input.is_action_just_pressed("interact") and _fk_ok:
-		if game.call("place_structure", kind, pos.x, pos.z, rot):
+	if active and Input.is_action_just_pressed("interact"):
+		if not _fk_ok:
+			_play_denied()
+		elif game.call("place_structure", kind, pos.x, pos.z, rot):
 			_fk_version = -1
 			if hammer_view != null:
 				hammer_view.call("swing")
+
+
+func _play_denied() -> void:
+	if audio != null:
+		audio.call("play_event", "build_denied")
 
 
 func _shore() -> float:

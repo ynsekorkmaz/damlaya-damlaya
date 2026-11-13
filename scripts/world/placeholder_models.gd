@@ -264,6 +264,17 @@ static func fountain() -> Node3D:
 	return root
 
 
+## Bulut: direğin üstünde sallanan yumuşak kümeler (glb direğe de kodla eklenir). Orijin bulutun merkezi.
+static func cloud() -> MeshInstance3D:
+	var c: MeshInstance3D = _mesh_node("Cloud", merge([
+		_sphere(0.34, Vector3(0.0, 0.0, 0.0), COL_CLOUD, 0.75),
+		_sphere(0.26, Vector3(0.32, -0.04, 0.05), COL_CLOUD, 0.75),
+		_sphere(0.26, Vector3(-0.30, -0.04, -0.04), COL_CLOUD, 0.75),
+		_sphere(0.22, Vector3(0.08, 0.14, 0.0), COL_CLOUD, 0.8)]))
+	c.position = Vector3(0.0, 3.35, 0.0)
+	return c
+
+
 ## Bulut direği gövdesi: ince direk ve bulut (Cloud) ayrı düğüm; bulut sallanır.
 static func cloud_pole() -> Node3D:
 	var root := Node3D.new()
@@ -271,13 +282,7 @@ static func cloud_pole() -> Node3D:
 	root.add_child(_mesh_node("Pole", merge([
 		_cylinder(0.05, 0.08, 3.0, Vector3(0.0, 1.5, 0.0), COL_WOOD, Vector3.ZERO, 6),
 		_box(Vector3(0.5, 0.08, 0.08), Vector3(0.0, 2.9, 0.0), COL_WOOD)])))
-	var cloud: MeshInstance3D = _mesh_node("Cloud", merge([
-		_sphere(0.34, Vector3(0.0, 0.0, 0.0), COL_CLOUD, 0.75),
-		_sphere(0.26, Vector3(0.32, -0.04, 0.05), COL_CLOUD, 0.75),
-		_sphere(0.26, Vector3(-0.30, -0.04, -0.04), COL_CLOUD, 0.75),
-		_sphere(0.22, Vector3(0.08, 0.14, 0.0), COL_CLOUD, 0.8)]))
-	cloud.position = Vector3(0.0, 3.35, 0.0)
-	root.add_child(cloud)
+	root.add_child(cloud())
 	return root
 
 

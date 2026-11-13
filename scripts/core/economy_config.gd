@@ -9,10 +9,10 @@ const FILL_SECONDS: float = 1.5
 # upgrade_cost: kapasite yukseltmesinin taban maliyeti.
 const TOOLS: Array[Dictionary] = [
 	{"id": "palm", "name_tr": "Avuç", "desc_tr": "Çıplak ellerin.", "capacity": 5.0, "cost": 0.0, "unlock_cost": 0.0, "upgrade_cost": 5.0},
-	{"id": "cup", "name_tr": "Tas", "desc_tr": "Avuçtan çok daha fazla su alır.", "capacity": 15.0, "cost": 12.0, "unlock_cost": 8.0, "upgrade_cost": 10.0},
-	{"id": "bucket", "name_tr": "Kova", "desc_tr": "Tek elde taşınan sağlam bir kova.", "capacity": 50.0, "cost": 90.0, "unlock_cost": 60.0, "upgrade_cost": 70.0},
-	{"id": "double_bucket", "name_tr": "Çift kova", "desc_tr": "İki elde birer kova; denge de iyi.", "capacity": 140.0, "cost": 700.0, "unlock_cost": 450.0, "upgrade_cost": 500.0},
-	{"id": "yoke", "name_tr": "Sırık ve dört kova", "desc_tr": "Omuzda sırık, uçlarda sarkan kovalar.", "capacity": 400.0, "cost": 6000.0, "unlock_cost": 4000.0, "upgrade_cost": 4500.0},
+	{"id": "cup", "name_tr": "Tas", "desc_tr": "Avuçtan çok daha fazla su alır.", "capacity": 12.0, "cost": 10.0, "unlock_cost": 6.0, "upgrade_cost": 8.0},
+	{"id": "bucket", "name_tr": "Kova", "desc_tr": "Tek elde taşınan sağlam bir kova.", "capacity": 30.0, "cost": 60.0, "unlock_cost": 40.0, "upgrade_cost": 40.0},
+	{"id": "double_bucket", "name_tr": "Çift kova", "desc_tr": "İki elde birer kova; denge de iyi.", "capacity": 120.0, "cost": 1200.0, "unlock_cost": 700.0, "upgrade_cost": 600.0},
+	{"id": "yoke", "name_tr": "Sırık ve dört kova", "desc_tr": "Omuzda sırık, uçlarda sarkan kovalar.", "capacity": 300.0, "cost": 15000.0, "unlock_cost": 8000.0, "upgrade_cost": 8000.0},
 ]
 
 # --- Alet kilidi ve kapasite yukseltmesi ---
@@ -25,16 +25,16 @@ const TOOL_UPGRADE_COST_GROWTH: float = 1.8 ## maliyet = upgrade_cost * carpan^s
 # Seviye i: drops_per_money damla = 1 para. cost: BU seviyeye gecmenin parasi (seviye 0 bedava).
 const RATE_LEVELS: Array[Dictionary] = [
 	{"drops_per_money": 5.0, "cost": 0.0},
-	{"drops_per_money": 4.0, "cost": 60.0},
-	{"drops_per_money": 3.0, "cost": 600.0},
-	{"drops_per_money": 2.0, "cost": 8000.0},
-	{"drops_per_money": 1.0, "cost": 120000.0},
+	{"drops_per_money": 4.0, "cost": 100.0},
+	{"drops_per_money": 3.0, "cost": 5000.0},
+	{"drops_per_money": 2.0, "cost": 50000.0},
+	{"drops_per_money": 1.0, "cost": 450000.0},
 ]
 const RATE_NAME_TR: String = "Dönüşüm oranı"
 
 # --- Pasif kaynaklar ---
 # Her adet cekicle kurulan bir yapidir (build.gd); adet maliyeti floor(base_cost * 1,15^adet).
-const SOURCE_COST_GROWTH: float = 1.15
+const SOURCE_COST_GROWTH: float = 1.3
 const COST_ROUND_EPSILON: float = 1.0e-6
 
 # Kaynak kilidi: ilk maliyetin bu orani (asagi yuvarlanir). Kilit acilmadan yapi kurulamaz.
@@ -43,9 +43,9 @@ const SOURCE_UNLOCK_FRACTION: float = 0.5
 const SOURCES: Array[Dictionary] = [
 	{"id": "crack", "name_tr": "Çatlak", "desc_tr": "Kayadaki ince bir sızıntı.", "rate": 0.5, "base_cost": 15.0},
 	{"id": "dew", "name_tr": "Çiğ otu", "desc_tr": "Sabah otlardan süzülen damlalar.", "rate": 3.0, "base_cost": 100.0},
-	{"id": "rain_cloud", "name_tr": "Bulut direği", "desc_tr": "Vadiye küçük bir yağmur getirir.", "rate": 20.0, "base_cost": 1100.0},
-	{"id": "spring", "name_tr": "Çeşme", "desc_tr": "Toprağın altından fışkıran taze su.", "rate": 120.0, "base_cost": 12000.0},
-	{"id": "stream_mouth", "name_tr": "Dere ağzı", "desc_tr": "Yamaçtan inen bir dere göle bağlanır.", "rate": 700.0, "base_cost": 150000.0},
+	{"id": "rain_cloud", "name_tr": "Bulut direği", "desc_tr": "Vadiye küçük bir yağmur getirir.", "rate": 20.0, "base_cost": 7000.0},
+	{"id": "spring", "name_tr": "Çeşme", "desc_tr": "Toprağın altından fışkıran taze su.", "rate": 100.0, "base_cost": 110000.0},
+	{"id": "stream_mouth", "name_tr": "Dere ağzı", "desc_tr": "Yamaçtan inen bir dere göle bağlanır.", "rate": 240.0, "base_cost": 700000.0},
 ]
 
 # --- Kayip ---
@@ -56,7 +56,7 @@ const MIN_LOSS_PERCENT: float = 0.0
 
 const LOSS_UPGRADES: Array[Dictionary] = [
 	{"id": "rock_bed", "name_tr": "Kaya yatağı", "desc_tr": "Çukurun tabanına taş döşenir.", "cost": 200.0, "points": 8.0},
-	{"id": "clay_floor", "name_tr": "Kil taban", "desc_tr": "Kil toprak suyu tutar.", "cost": 400000.0, "points": 5.0},
+	{"id": "clay_floor", "name_tr": "Kil taban", "desc_tr": "Kil toprak suyu tutar.", "cost": 40000.0, "points": 5.0},
 ]
 
 # --- Kanal (parca, malzeme, pinar ve yukseltme fiyatlari canal_pieces.gd'de) ---
@@ -79,11 +79,11 @@ const VISIBLE_COST_FRACTION: float = 0.5
 const STAGES: Array[Dictionary] = [
 	{"id": "drop", "name_tr": "Damla", "threshold": 0.0, "text_tr": "Yerde tek bir damla var."},
 	{"id": "pit", "name_tr": "Çukur", "threshold": 50.0, "text_tr": "Toprakta küçük bir çukur açıldı."},
-	{"id": "pond", "name_tr": "Havuz", "threshold": 1000.0, "text_tr": "Artık bir havuz. Kenarında kamışlar bitti, balıklar geldi."},
-	{"id": "lake", "name_tr": "Göl", "threshold": 25000.0, "text_tr": "Damlaya damlaya göl oldu. Kuşlar kondu."},
-	{"id": "great_lake", "name_tr": "Büyük göl", "threshold": 400000.0, "text_tr": "Karşı kıyı sisin içinde kayboldu."},
+	{"id": "pond", "name_tr": "Havuz", "threshold": 4000.0, "text_tr": "Artık bir havuz. Kenarında kamışlar bitti, balıklar geldi."},
+	{"id": "lake", "name_tr": "Göl", "threshold": 200000.0, "text_tr": "Damlaya damlaya göl oldu. Kuşlar kondu."},
+	{"id": "great_lake", "name_tr": "Büyük göl", "threshold": 3500000.0, "text_tr": "Karşı kıyı sisin içinde kayboldu."},
 ]
-const GAME_END_DROPS: float = 2000000.0
+const GAME_END_DROPS: float = 9000000.0
 
 # Canli sayilari, asama indeksine gore.
 const FISH_BY_STAGE: Array[int] = [0, 0, 2, 5, 9]

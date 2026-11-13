@@ -184,12 +184,12 @@ func test_source_structures() -> void:
 	s.hammer_owned = true
 	s.hammer_unlocked = true
 	s.money = 1.0e12
-	var expect_costs: Dictionary = {"crack": [15, 17, 19, 22, 26], "dew": [100, 115, 132, 152]}
+	var expect_costs: Dictionary = {"crack": [15, 19, 25, 32, 42], "dew": [100, 130, 169, 219]}
 	for kind: String in expect_costs:
 		s.unlocked_sources.append(kind)
 		var list: Array = expect_costs[kind]
 		for i: int in list.size():
-			check(Build.can_place(s, kind)["cost"] == list[i], "%s adet %d maliyeti 1,15 carpanli" % [kind, i])
+			check(Build.can_place(s, kind)["cost"] == list[i], "%s adet %d maliyeti 1,3 carpanli" % [kind, i])
 			check(Build.place(s, kind, 1.0, 2.0, 0.0), "%s kurulur" % kind)
 	# Uretim: yapilardan turetilir
 	var crack_n: int = 5
@@ -221,10 +221,10 @@ func test_remove_structure() -> void:
 	g.unlock_source("crack")
 	for i: int in 4:
 		g.place_structure("crack", float(i), 0.0, 0.0)
-	# 4 adet var; sokulunca 3 kalir: iade floor(cost(3 adet var) / 2) = floor(22 / 2)... cost_at(3) = 22
+	# 4 adet var; sokulunca 3 kalir: iade floor(cost(3 adet var) / 2) = floor(32 / 2): cost_at(3) = floor(15 * 1,3^3) = 32
 	var before: float = g.state.money
 	var refund: int = g.remove_structure(1)
-	check(refund == 11 and near(g.state.money, before + 11.0), "iade: sokulduktan sonraki adet (3) fiyatinin yarisi (%d)" % refund)
+	check(refund == 16 and near(g.state.money, before + 16.0), "iade: sokulduktan sonraki adet (3) fiyatinin yarisi (%d)" % refund)
 	check(Build.count(g.state, "crack") == 3 and g.state.structures.size() == 3, "adet ve liste azalir")
 	check(g.state.structures[1]["x"] == 2.0, "dogru yapi sokuldu")
 	check(g.remove_structure(99) == 0 and g.remove_structure(-1) == 0, "gecersiz indeks 0")
@@ -313,8 +313,8 @@ func test_canal_delivery_tick() -> void:
 	for col: int in Pieces.DEFAULT_COLS:
 		check(g.place_canal(col, 4, "straight", 0, "earth"), "duz kanal %d" % col)
 	var res: Dictionary = g.canal_result()
-	var expected: float = 60.0 * pow(1.0 - 0.05, 14)
-	check(near(float(res["delivered"]), expected, 1e-6), "14 parcalik toprak hat: 60 * 0,95^14 (%f)" % float(res["delivered"]))
+	var expected: float = 80.0 * pow(1.0 - 0.05, 14)
+	check(near(float(res["delivered"]), expected, 1e-6), "14 parcalik toprak hat: 80 * 0,95^14 (%f)" % float(res["delivered"]))
 	check(is_same(res, g.canal_result()), "sonuc onbellekten gelir")
 	var drops_before: float = g.state.total_drops
 	g._process(2.0)
@@ -333,7 +333,7 @@ func test_canal_unlocks() -> void:
 	check(not g.unlock_piece("elbow") and not g.unlock_material("wood"), "kanal kilitliyken parca/malzeme kilidi acilmaz")
 	g.state.canal_unlocked = true
 	check(g.state.unlocked_pieces == ["straight"] and g.state.unlocked_materials == ["earth"], "yalniz duz kanal ve toprak baslangicta acik")
-	var piece_costs: Dictionary = {"elbow": 50, "tee": 150, "wye": 400, "cross": 600, "gate": 900, "mill": 1200, "aqueduct": 3000, "reservoir": 6000}
+	var piece_costs: Dictionary = {"elbow": 50, "tee": 150, "wye": 400, "cross": 600, "gate": 900, "mill": 2500, "aqueduct": 3000, "reservoir": 6000}
 	for id: String in piece_costs:
 		check(Economy.cost_piece_unlock(g.state, id) == float(piece_costs[id]), "parca kilidi %s" % id)
 		var before: float = g.state.money
@@ -341,7 +341,7 @@ func test_canal_unlocks() -> void:
 		check(not g.unlock_piece(id), "ikinci kez acilmaz %s" % id)
 	check(not g.unlock_piece("straight") and not g.unlock_piece("yok") and not g.unlock_material("earth") and not g.unlock_material("yok"), "acik/bilinmeyen kilit acilmaz")
 	check(g.unlock_material("wood") and g.unlock_material("stone") and g.state.unlocked_materials.size() == 3, "malzeme kilitleri")
-	check(Economy.cost_material_unlock(GameState.new(), "wood") == 800.0 and Economy.cost_material_unlock(GameState.new(), "stone") == 8000.0, "malzeme kilit maliyetleri")
+	check(Economy.cost_material_unlock(GameState.new(), "wood") == 2500.0 and Economy.cost_material_unlock(GameState.new(), "stone") == 30000.0, "malzeme kilit maliyetleri")
 	# Kilit acilinca parca kurulabilir
 	g.state.hammer_owned = true
 	check(g.place_canal(2, 2, "elbow", 1, "wood"), "acilan parca ve malzeme kurulur")
@@ -353,8 +353,8 @@ func test_canal_unlocks() -> void:
 	check(not Economy.piece_row_visible(s, "elbow"), "dirsek kilidi gorunmez")
 	s.total_money_earned = 25.0
 	check(Economy.piece_row_visible(s, "elbow") and not Economy.piece_row_visible(s, "tee"), "dirsek 25 paraya gorunur")
-	s.total_money_earned = 400.0
-	check(Economy.material_row_visible(s, "wood") and not Economy.material_row_visible(s, "stone"), "ahsap 400 paraya gorunur")
+	s.total_money_earned = 1250.0
+	check(Economy.material_row_visible(s, "wood") and not Economy.material_row_visible(s, "stone"), "ahsap 1250 paraya gorunur")
 	g.free()
 
 

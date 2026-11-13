@@ -235,7 +235,7 @@ func test_rocks() -> void:
 	check(same, "kaya yerlesimi belirlenimci")
 	check(clear, "kayalar en buyuk canaga ve dogus noktasina yakin degil")
 	check(big >= 3 and small >= 3, "kaya boy cesitliligi (buyuk %d, kucuk %d)" % [big, small])
-	check(Config.ROCK_VARIANTS <= 3, "en fazla 3 MultiMesh")
+	check(Config.ROCK_VARIANTS >= 4 and Config.ROCK_VARIANTS <= 6, "4 ile 6 kaya bicimi")
 	var tris: int = 0
 	var counts: Array[int] = []
 	counts.resize(Config.ROCK_VARIANTS)
@@ -245,6 +245,7 @@ func test_rocks() -> void:
 	for v in range(Config.ROCK_VARIANTS):
 		var m: ArrayMesh = RocksBuilder.build_rock_mesh(v)
 		var ri: PackedInt32Array = m.surface_get_arrays(0)[Mesh.ARRAY_INDEX]
+		check(ri.size() / 3 <= 800, "kaya bicimi %d en fazla 800 ucgen (%d)" % [v, ri.size() / 3])
 		tris += ri.size() / 3 * counts[v]
 	check(tris <= Config.ROCK_TRI_BUDGET, "kaya ucgen butcesi (%d)" % tris)
 	var root_rocks: Node3D = RocksBuilder.build()
@@ -259,7 +260,7 @@ func test_rocks() -> void:
 	for r in a:
 		if r["size"] >= Config.ROCK_COLLIDE_MIN_SIZE:
 			expect_col += 1
-	check(mmis >= 1 and mmis <= 3, "MultiMesh sayisi (%d)" % mmis)
+	check(mmis >= 1 and mmis <= Config.ROCK_VARIANTS, "MultiMesh sayisi (%d)" % mmis)
 	check(shapes == expect_col and shapes > 0, "buyuk kayalara carpisma (%d / %d)" % [shapes, expect_col])
 	root_rocks.free()
 
@@ -349,47 +350,37 @@ func test_lake_shape() -> void:
 
 
 func test_spring() -> void:
-	var mesh: ArrayMesh = SpringBuilder.build_rock_mesh()
-	var arrays: Array = mesh.surface_get_arrays(0)
-	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var norms: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var per: int = SpringBuilder.tris_per_blob()
-	var tri_count: int = idx.size() / 3
-	check(tri_count == per * SpringBuilder.blob_count(), "kaynak kayasi ucgen sayisi kutle basina sabit")
-	check(tri_count < 2500, "kaynak kayasi 2500 ucgen alti (%d)" % tri_count)
-	# Her ucgen kendi kutlesinin merkezinden disa bakmali: (b-a)x(c-a) icerideyse ters
-	var reversed: int = 0
-	var flipped_normals: int = 0
-	for t in range(tri_count):
-		var blob: int = t / per
-		var a: Vector3 = verts[idx[t * 3]]
-		var b: Vector3 = verts[idx[t * 3 + 1]]
-		var c: Vector3 = verts[idx[t * 3 + 2]]
-		var n: Vector3 = (c - a).cross(b - a)
-		var mid: Vector3 = (a + b + c) / 3.0
-		if n.length() > 0.00001 and n.dot(mid - SpringBuilder.blob_center(blob)) <= 0.0:
-			reversed += 1
-	check(reversed == 0, "kaynak kayasinda ters ucgen yok (%d)" % reversed)
-	for i in range(norms.size()):
-		var blob2: int = i / (verts.size() / SpringBuilder.blob_count())
-		if absf(norms[i].length() - 1.0) > 0.01 or norms[i].dot(verts[i] - SpringBuilder.blob_center(blob2)) < -0.2:
-			flipped_normals += 1
-	check(flipped_normals == 0, "kaynak kayasi normalleri birim ve disa dogru (%d)" % flipped_normals)
-	var max_y: float = 0.0
-	var min_y: float = 0.0
-	for v in verts:
-		max_y = maxf(max_y, v.y)
-		min_y = minf(min_y, v.y)
-	check(max_y > 2.0 and max_y < 2.45, "kaynak kayasi en yuksek ~2,2 m (%f)" % max_y)
-	check(min_y < -0.2, "kaynak kayasi zemine gomulu (%f)" % min_y)
-	# Yarik: ust yukseklikte on iki kutle arasinda gercekten cokuk (on yuzey, yan kutlelerden geride)
+	var model: Node3D = SpringBuilder.make_model()
+	var parts: Array = SpringBuilder.mesh_parts(model)
+	check(parts.size() >= 4, "kaynak modeli: kaya parcalari ve yarik astari (%d)" % parts.size())
+	var tris: int = 0
+	var max_y: float = -INF
+	var min_y: float = INF
+	var min_x: float = INF
+	var max_x: float = -INF
+	for part: Dictionary in parts:
+		var mesh: Mesh = (part["node"] as MeshInstance3D).mesh
+		var arrays: Array = mesh.surface_get_arrays(0)
+		tris += (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+		for v: Vector3 in arrays[Mesh.ARRAY_VERTEX]:
+			var w: Vector3 = (part["xf"] as Transform3D) * v
+			max_y = maxf(max_y, w.y)
+			min_y = minf(min_y, w.y)
+			min_x = minf(min_x, w.x)
+			max_x = maxf(max_x, w.x)
+	model.free()
+	check(tris <= 4000, "kaynak kayasi 4000 ucgen alti (%d)" % tris)
+	check(max_y > 2.0 and max_y < 2.5, "kaynak kayasi en yuksek ~2,2 m (%f)" % max_y)
+	check(min_y < -0.1, "kaynak kayasi zemine gomulu (%f)" % min_y)
+	check(maxf(-min_x, max_x) < Config.SPRING_RADIUS + 0.4, "kaynak kayasi tabani SPRING_RADIUS ile uyumlu (%f / %f)" % [min_x, max_x])
+	# Yarik: ortada on yuzey iki yan kayanin on yuzunden geride (cokuk) ve yarik boyunca yuzey bulunur
 	var cleft: float = SpringBuilder.front_z(1.2)
-	var left_front: float = SpringBuilder.front_z(1.2)
-	check(cleft < 0.85, "yarik ici arkaya cokuk (z %f)" % cleft)
-	check(left_front > -1.5, "yarik tabani bulundu")
+	check(cleft < SpringBuilder.mouth_z() - 0.2, "yarik ici arkaya cokuk (yarik %f, agiz %f)" % [cleft, SpringBuilder.mouth_z()])
+	check(cleft > -1.5, "yarik tabani bulundu")
 	var root_node: Node3D = SpringBuilder.build()
-	check(root_node.find_children("*", "CollisionShape3D", true, false).size() == SpringBuilder.blob_count(), "kaynak kayasi carpismali (kutle basina)")
+	var cols: int = root_node.find_children("*", "CollisionShape3D", true, false).size()
+	check(cols >= 3 and cols <= 6, "kaynak kayasi carpismali, parca basina basit sekil (%d)" % cols)
+	check(root_node.get_node_or_null("SpringRock") != null and (root_node.get_node("SpringRock") as Node).is_in_group("rock"), "kaynak kayasi rock grubunda")
 	check(root_node.get_node_or_null("Stream") != null and root_node.get_node_or_null("Puddle") != null, "serit ve birikinti var")
 	root_node.free()
 

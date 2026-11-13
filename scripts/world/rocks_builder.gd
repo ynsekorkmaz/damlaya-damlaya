@@ -1,12 +1,48 @@
 extends RefCounted
-## Vadiye serpilmiş yumuşak gölgeli kayalar: biçim başına bir MultiMeshInstance3D,
-## büyük kayalar için basit küre çarpışması.
+## Vadiye serpilmiş kayalar (Poly Haven CC0 modelleri, assets/models/rocks/rock_<n>.glb): biçim başına bir MultiMeshInstance3D,
+## büyük kayalar için basit küre çarpışması. Model orijini taban merkezindedir (bkz. tools/blender/make_rocks.py).
+## Dosya yoksa koddan üretilmiş yumuşak kütle kullanılır.
 
 const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
 const TerrainShape = preload("res://scripts/core/terrain_shape.gd")
 const BasinShape = preload("res://scripts/core/basin_shape.gd")
 const CanalField = preload("res://scripts/core/canal_field.gd")
+
+
+static var _meshes: Dictionary = {}
+
+
+## Biçimin ağı: glb varsa o (orijin tabanda), yoksa koddan üretilmiş kütle (orijin ortada).
+static func build_rock_mesh(variant: int = 0) -> ArrayMesh:
+	if _meshes.has(variant):
+		return _meshes[variant]
+	var mesh: ArrayMesh = _load_glb_mesh(variant)
+	if mesh == null:
+		mesh = _procedural_mesh(variant)
+	_meshes[variant] = mesh
+	return mesh
+
+
+static func _load_glb_mesh(variant: int) -> ArrayMesh:
+	var path: String = Config.ROCK_MODEL_PATH % (variant + 1)
+	if not ResourceLoader.exists(path):
+		return null
+	var scene: PackedScene = load(path)
+	if scene == null:
+		return null
+	var inst: Node = scene.instantiate()
+	var found: Array[Node] = inst.find_children("*", "MeshInstance3D", true, false)
+	var mesh: ArrayMesh = null
+	if not found.is_empty():
+		mesh = (found[0] as MeshInstance3D).mesh as ArrayMesh
+	inst.free()
+	return mesh
+
+
+## Biçimin taban ölçüleri (yerel, ölçeksiz): size, ve tabanın yerel y'si.
+static func mesh_box(variant: int) -> AABB:
+	return build_rock_mesh(variant).get_aabb()
 
 
 static func build() -> Node3D:
@@ -40,7 +76,7 @@ static func build() -> Node3D:
 		sphere.radius = r["collide_radius"]
 		var cs := CollisionShape3D.new()
 		cs.shape = sphere
-		cs.position = (r["transform"] as Transform3D).origin
+		cs.position = r["collide_center"]
 		body.add_child(cs)
 	root.add_child(body)
 	return root
@@ -128,18 +164,23 @@ static func _make_rock(rng: RandomNumberGenerator, pos: Vector2, size: float) ->
 		rng.randf() * TAU,
 		rng.randf_range(-Config.ROCK_TILT_MAX, Config.ROCK_TILT_MAX))
 	var basis := Basis.from_euler(tilt).scaled_local(Vector3(sx, sy, sz))
-	# Zeminin en alçak yakın noktasına oturt, hafifçe göm
-	var reach: float = minf(sx, sz) * 0.5
+	var box: AABB = mesh_box(variant)
+	var base_y: float = box.position.y     # glb: 0; yedek kütle: -0,5
+	var height: float = box.size.y * sy
+	# Zeminin en alçak yakın noktasına oturt, hafifçe göm (orijin tabanda)
+	var reach: float = minf(sx * box.size.x, sz * box.size.z) * 0.5
 	var ground: float = TerrainShape.height(pos.x, pos.y)
 	for k in range(4):
 		var a: float = k * TAU / 4.0 + 0.4
 		ground = minf(ground, TerrainShape.height(pos.x + cos(a) * reach, pos.y + sin(a) * reach))
-	var y: float = ground + sy * 0.5 - sy * Config.ROCK_SINK_FRAC
+	var y: float = ground - base_y * sy - height * Config.ROCK_SINK_FRAC
+	var origin := Vector3(pos.x, y, pos.y)
 	return {
-		"transform": Transform3D(basis, Vector3(pos.x, y, pos.y)),
+		"transform": Transform3D(basis, origin),
 		"variant": variant,
 		"size": size,
 		"collide_radius": reach * Config.ROCK_COLLIDE_FRAC,
+		"collide_center": origin + Vector3.UP * (height * 0.5 + base_y * sy),
 	}
 
 
@@ -157,7 +198,7 @@ static func _surface(dir: Vector3, variant: int) -> Vector3:
 	return p
 
 
-static func build_rock_mesh(variant: int = 0) -> ArrayMesh:
+static func _procedural_mesh(variant: int) -> ArrayMesh:
 	var rings: int = Config.ROCK_RINGS
 	var segs: int = Config.ROCK_SEGMENTS
 	var mat := StandardMaterial3D.new()

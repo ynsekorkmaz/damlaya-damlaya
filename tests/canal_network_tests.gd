@@ -22,6 +22,7 @@ func _init() -> void:
 	test_tee_and_cross()
 	test_wye()
 	test_aqueduct()
+	test_aqueduct_single_line()
 	test_gate()
 	test_blocked_spring_start()
 	test_exit_needs_east_port()
@@ -319,6 +320,52 @@ func test_aqueduct() -> void:
 	check(fd == Vector2i(0, 1), "kemer: baskin hat (B, asagi) yonu, gelen %s" % str(fd))
 
 
+func test_aqueduct_single_line() -> void:
+	# Yalnizca A acik: kemerin yalniz dogu-bati hatti akar; kuzey-guney hatti kurudur.
+	var g: RefCounted = legacy_net()
+	g.open_spring("A")
+	for col in range(8):
+		put(g, col, 2, "aqueduct" if col == 3 else "straight")
+	put(g, 3, 1, "straight", 1)
+	put(g, 3, 3, "straight", 1)
+	var r: Dictionary = Flow.compute(g)
+	check(r.has("flowing_nodes"), "kemer tek hat: flowing_nodes anahtari var")
+	var fn: Dictionary = r["flowing_nodes"]
+	check(fn.has(Vector2i(3, 2)), "kemer tek hat: kemer akan hucre")
+	var mouths: Array = fn.get(Vector2i(3, 2), [])
+	check(mouths.has(Pieces.E) and mouths.has(Pieces.W), "kemer tek hat: dogu-bati agizlari akiyor")
+	check(not mouths.has(Pieces.N) and not mouths.has(Pieces.S), "kemer tek hat: kuzey-guney agizlari akmiyor")
+	check(not fn.has(Vector2i(3, 1)) and not fn.has(Vector2i(3, 3)), "kemer tek hat: dik hatta bagli parcalar kuru")
+	# Dondurulmus kemer: ayni hat artik kuzey-guney eksenindedir.
+	var h: RefCounted = legacy_net()
+	h.open_spring("A")
+	for col in range(8):
+		put(h, col, 2, "aqueduct" if col == 3 else "straight")
+	h.rotate(3, 2)
+	put(h, 3, 1, "straight", 1)
+	put(h, 3, 3, "straight", 1)
+	# Dondurulunce E-W hatti N-S'ye gecer; A hatti kemere girince kesilir.
+	var r2: Dictionary = Flow.compute(h)
+	check(not r2["flowing_nodes"].has(Vector2i(3, 2)) or not (r2["flowing_nodes"][Vector2i(3, 2)] as Array).has(Pieces.N), "kemer donuk: akis olmayan hat akmaz")
+	# Iki hat da akinca ikisi de listelenir.
+	var d: RefCounted = legacy_net()
+	d.open_spring("A")
+	d.open_spring("B")
+	for col in range(8):
+		put(d, col, 2, "aqueduct" if col == 3 else "straight")
+	put(d, 0, 0, "straight")
+	put(d, 1, 0, "straight")
+	put(d, 2, 0, "straight")
+	put(d, 3, 0, "elbow", Pieces.elbow_rotation(Pieces.E, true))
+	put(d, 3, 1, "straight", 1)
+	put(d, 3, 3, "straight", 1)
+	put(d, 3, 4, "elbow", Pieces.elbow_rotation(Pieces.S, false))
+	for col in range(4, 8):
+		put(d, col, 4, "straight")
+	var m: Array = Flow.compute(d)["flowing_nodes"].get(Vector2i(3, 2), [])
+	check(m.size() == 4, "kemer iki hat: dort agiz akiyor (gelen %d)" % m.size())
+
+
 func test_gate() -> void:
 	var g: RefCounted = a_net()
 	hline(g, 2, 3)
@@ -442,7 +489,7 @@ func test_default_layout() -> void:
 	for col in range(14):
 		put(g, col, 4, "straight")
 	var r: Dictionary = Flow.compute(g)
-	near(r["delivered"], 60.0 * pow(0.95, 14), "14 sutunluk hat")
+	near(r["delivered"], 80.0 * pow(0.95, 14), "14 sutunluk hat")
 	check(r["per_spring"]["A"]["path_length"] == 14, "14 sutun L=14")
 	check(not g.place(14, 0, "straight", 0, "earth"), "sinir disi (sutun)")
 	check(not g.place(0, 10, "straight", 0, "earth"), "sinir disi (satir)")
@@ -476,12 +523,12 @@ func test_costs() -> void:
 	put(g, 1, 1, "mill")
 	check(g.cost("mill", "earth") == 1350, "2 degirmen sonra 1350, gelen %d" % g.cost("mill", "earth"))
 	check(g.mill_count() == 2 and g.piece_count() == 12 and g.count_of("straight") == 10, "sayimlar")
-	check(g.width_cost() == 3000 and g.lining_cost() == 5000, "yukseltme ilk maliyetleri")
+	check(g.width_cost() == 12000 and g.lining_cost() == 15000, "yukseltme ilk maliyetleri")
 	g.upgrade_width()
 	g.upgrade_lining()
-	check(g.width_cost() == 12000 and g.lining_cost() == 20000, "yukseltme ikinci maliyetleri")
+	check(g.width_cost() == 48000 and g.lining_cost() == 60000, "yukseltme ikinci maliyetleri")
 	check(Pieces.width_upgrade_cost(4) == -1 and Pieces.lining_upgrade_cost(3) == -1, "azami seviyede -1")
-	check(g.spring_cost("C") == 200000 and g.spring_cost("Z") == -1, "pinar maliyeti")
+	check(g.spring_cost("C") == 150000 and g.spring_cost("Z") == -1, "pinar maliyeti")
 
 
 func test_refund() -> void:

@@ -8,7 +8,7 @@ const BUS_AMBIENCE: String = "Ambience"
 const BUS_UI: String = "UI"
 const BUS_DB_SFX: float = 0.0
 const BUS_DB_AMBIENCE: float = -3.0
-const BUS_DB_UI: float = -6.0
+const BUS_DB_UI: float = -3.0
 
 const DEFAULT_VOLUME: float = 0.6   ## ana ses düzeyi 0..1
 const VOLUME_STEP: float = 0.1
@@ -60,15 +60,15 @@ const POS_MOVE_SPEED: float = 30.0   ## kaynak konumu hedefe bu hızla kayar (m/
 const POS_UNIT_SIZE: float = 3.0
 const POS_MAX_DISTANCE: float = 45.0
 const SPRING_DB: float = -6.0
-const LAKE_DB: float = -14.0
+const LAKE_DB: float = -10.0
 const CANAL_DB: float = -9.0
 const MILL_DB: float = -8.0
 const LAKE_MIN_RADIUS: float = 1.5
 const SPRING_HEIGHT: float = 1.0
 
 # Ambiyans
-const WIND_DB: float = -22.0
-const BIRD_DB: float = -16.0
+const WIND_DB: float = -16.0
+const BIRD_DB: float = -11.0
 const BIRD_GAP_MIN: float = 7.0
 const BIRD_GAP_MAX: float = 16.0
 const BIRD_GAP_FACTOR_WITH_BIRDS: float = 0.4
@@ -91,7 +91,7 @@ const EVENTS: Dictionary = {
 	"build_place": {"sound": "hammer_place", "bus": "sfx", "db": -6.0, "pitch": 0.06},
 	"build_remove": {"sound": "hammer_remove", "bus": "sfx", "db": -7.0, "pitch": 0.05},
 	"build_rotate": {"sound": "tick", "bus": "sfx", "db": -10.0, "pitch": 0.04},
-	"build_denied": {"sound": "dull", "bus": "sfx", "db": -9.0, "pitch": 0.04},
+	"build_denied": {"sound": "dull", "bus": "sfx", "db": -4.0, "pitch": 0.04},
 	"purchase": {"sound": "purchase", "bus": "ui", "db": -4.0, "pitch": 0.0},
 	"unlock": {"sound": "unlock", "bus": "ui", "db": -4.0, "pitch": 0.0},
 	"purchase_denied": {"sound": "fail", "bus": "ui", "db": -6.0, "pitch": 0.0},
@@ -102,7 +102,7 @@ const EVENTS: Dictionary = {
 	"book_open": {"sound": "page", "bus": "ui", "db": -8.0, "pitch": 0.05},
 	"book_close": {"sound": "page", "bus": "ui", "db": -9.0, "pitch": 0.05},
 	"stage": {"sound": "stage", "bus": "sfx", "db": -8.0, "pitch": 0.0},
-	"bird": {"sound": "bird", "bus": "ambience", "db": -16.0, "pitch": 0.08},
+	"bird": {"sound": "bird", "bus": "ambience", "db": -11.0, "pitch": 0.08},
 }
 
 ## Döngülü sesler (sound_bank.gd katalogunda aynı adlarla bulunur).

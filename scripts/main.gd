@@ -259,6 +259,16 @@ func _ready() -> void:
 	if open_book:
 		book.call("open_section", book_section)
 
+	if OS.get_cmdline_user_args().has("--demo"):
+		var demo := Node.new()
+		demo.set_script(preload("res://scripts/tools/demo_player.gd"))
+		demo.set("game", game)
+		demo.set("player", player)
+		demo.set("equipment", equipment)
+		demo.set("audio", audio)
+		demo.set("lake", lake)
+		add_child(demo)
+
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--screenshot="):
 			_capture_and_quit(arg.substr("--screenshot=".length()))

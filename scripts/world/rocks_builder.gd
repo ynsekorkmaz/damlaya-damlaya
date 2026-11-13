@@ -6,6 +6,7 @@ const Config = preload("res://scripts/core/config.gd")
 const Palette = preload("res://scripts/core/palette.gd")
 const TerrainShape = preload("res://scripts/core/terrain_shape.gd")
 const BasinShape = preload("res://scripts/core/basin_shape.gd")
+const CanalField = preload("res://scripts/core/canal_field.gd")
 
 
 static func build() -> Node3D:
@@ -31,6 +32,7 @@ static func build() -> Node3D:
 		root.add_child(mmi)
 	var body := StaticBody3D.new()
 	body.name = "RockColliders"
+	body.add_to_group("rock")
 	for r in rocks:
 		if r["size"] < Config.ROCK_COLLIDE_MIN_SIZE:
 			continue
@@ -110,6 +112,8 @@ static func is_allowed(pos: Vector2) -> bool:
 		return false
 	var shop := Vector2(Config.SHOP_POSITION.x, Config.SHOP_POSITION.z)
 	if pos.distance_to(shop) < Config.SHOP_ROCK_CLEARANCE:
+		return false
+	if CanalField.contains(pos.x, pos.y, Config.CANAL_FIELD_ROCK_CLEARANCE + Config.CANAL_FIELD_FLAT_MARGIN + Config.CANAL_FIELD_TRANSITION):
 		return false
 	return pos.distance_to(spawn) >= Config.ROCK_SPAWN_CLEARANCE
 

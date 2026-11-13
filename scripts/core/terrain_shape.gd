@@ -3,17 +3,22 @@ extends RefCounted
 
 const Config = preload("res://scripts/core/config.gd")
 const BasinShape = preload("res://scripts/core/basin_shape.gd")
+const CanalField = preload("res://scripts/core/canal_field.gd")
 
 
-## Zemin dalgaları (vadi kenarı olmadan).
+## Zemin dalgaları (vadi kenarı olmadan). Kanal alanında sönümlenir: alan içinde zemin tam düzdür (CANAL_FIELD_HEIGHT).
 static func waves(x: float, z: float) -> float:
 	var r: float = sqrt(x * x + z * z)
 	var calm: float = lerpf(Config.CALM_MIN, 1.0, smoothstep(Config.CALM_NEAR, Config.CALM_FAR, r))
-	return (
+	var raw: float = (
 		Config.WAVE_AMP_A * sin(x * Config.WAVE_FREQ_AX) * cos(z * Config.WAVE_FREQ_AZ)
 		+ Config.WAVE_AMP_B * sin(x * Config.WAVE_FREQ_BX + z * Config.WAVE_FREQ_BZ)
 		+ Config.WAVE_AMP_C * cos(z * Config.WAVE_FREQ_CZ - x * Config.WAVE_FREQ_CX)
 	) * calm
+	var mask: float = CanalField.flat_mask(x, z)
+	if mask <= 0.0:
+		return raw
+	return lerpf(raw, Config.CANAL_FIELD_HEIGHT, mask)
 
 
 ## Çanaksız zemin (dalgalar + vadi kenarı).

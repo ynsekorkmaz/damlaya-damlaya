@@ -224,6 +224,15 @@ func _process(delta: float) -> void:
 	_update_ripples(delta)
 
 
+## Gölün o anki kıyı yarıçapı (m); su görünmüyorsa 0.
+func shore_radius() -> float:
+	return _radius if _water != null and _water.visible else 0.0
+
+
+func water_level() -> float:
+	return _level
+
+
 func _on_poured(_drops: float, _money: float) -> void:
 	var pos := Vector2.ZERO
 	if player != null:

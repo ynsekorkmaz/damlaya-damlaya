@@ -95,6 +95,7 @@ static func build() -> Node3D:
 
 	var body := StaticBody3D.new()
 	body.name = "SpringRock"
+	body.add_to_group("rock")
 	var mi := MeshInstance3D.new()
 	mi.mesh = build_rock_mesh()
 	body.add_child(mi)

@@ -11,6 +11,10 @@ const ACTION_KEYS: Dictionary = {
 	"toggle_debug": [KEY_F3],
 	"shop": [KEY_E],
 	"upgrades": [KEY_TAB],
+	"slot_1": [KEY_1],
+	"slot_2": [KEY_2],
+	"build_book": [KEY_Q],
+	"rotate": [KEY_R],
 }
 
 

@@ -349,6 +349,11 @@ func _on_poured(_drops: float, money: float) -> void:
 	_show_popup(text)
 
 
+## Disaridan "+N para" gibi kisa kazanc yazisi gosterir (cekicle sokme iadesi).
+func show_gain(text: String) -> void:
+	_show_popup(text)
+
+
 func _show_popup(text: String) -> void:
 	var index: int = _popup_next
 	_popup_next = (_popup_next + 1) % POPUP_POOL_SIZE

@@ -27,6 +27,7 @@ var _skin_mat: StandardMaterial3D
 var _tools: Array[Dictionary] = []   # seviye -> {"root": Node3D, "waters": Array[Node3D]}; seviye 0 (avuc) bos
 var _shown_level: int = -1           # gorunen alet seviyesi
 var _drop: float = 0.0               # alet degisim animasyonu, 0..1
+var lowered: float = 0.0             # cekic girerken disaridan verilen indirme, 0..1
 
 
 func _ready() -> void:
@@ -205,7 +206,7 @@ func _apply_pose(pour: float) -> void:
 	rot.x += Cfg.POUR_PITCH_DEG * pour
 	pos.z += Cfg.POUR_FORWARD * pour
 	pos.y += Cfg.POUR_LIFT * pour
-	pos.y -= Cfg.TOOL_CHANGE_DROP * smoothstep(0.0, 1.0, _drop)
+	pos.y -= Cfg.TOOL_CHANGE_DROP * smoothstep(0.0, 1.0, maxf(_drop, lowered))
 	_model.position = pos
 	_model.rotation = Vector3(deg_to_rad(rot.x), deg_to_rad(rot.y), deg_to_rad(rot.z))
 
@@ -224,7 +225,7 @@ func _apply_tool_pose(pour: float, walk_swing: float) -> void:
 	rot.x += absf(walk_swing) * swing * 0.3 + float(pose["pour_pitch"]) * pour
 	var pos: Vector3 = pose["pos"]
 	pos += (pose["pour_pos"] as Vector3) * pour
-	pos.y -= Cfg.TOOL_CHANGE_DROP * smoothstep(0.0, 1.0, _drop)
+	pos.y -= Cfg.TOOL_CHANGE_DROP * smoothstep(0.0, 1.0, maxf(_drop, lowered))
 	root.position = pos
 	root.rotation = Vector3(deg_to_rad(rot.x), deg_to_rad(rot.y), deg_to_rad(rot.z))
 

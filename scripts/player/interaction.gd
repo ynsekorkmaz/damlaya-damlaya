@@ -16,6 +16,8 @@ const PROMPT_SHOP: String = "E: dükkânı aç"
 
 var game: Node
 var player: CharacterBody3D
+var equipment: Node ## elde cekic varken su doldurma/dokme calismaz
+var build: Node ## build_controller: ipucunu o yonetiyorsa burada ipucu verilmez
 
 var _spring_center: Vector3
 var _was_captured: bool = false
@@ -43,17 +45,20 @@ func _process(delta: float) -> void:
 	# Fareyi yakalayan ilk tıklama etkileşim sayılmaz.
 	var active: bool = captured and _was_captured
 	_was_captured = captured
+	if build != null and bool(build.call("has_prompt")):
+		_shop_ready = false
+		return
 	if not captured:
 		_shop_ready = false
 		game.call("set_prompt", "")
 		return
-
+	var hammer: bool = equipment != null and bool(equipment.call("hammer_active"))
 	var state: Object = game.get("state")
 	var carried: float = state.carried
 	var capacity: float = Economy.tool_capacity(state)
 	var prompt: String = ""
 	_bring_timer = maxf(_bring_timer - delta, 0.0)
-	if active and carried > 0.0 and Input.is_action_just_pressed("pour"):
+	if active and not hammer and carried > 0.0 and Input.is_action_just_pressed("pour"):
 		if _in_pour_zone(state):
 			game.call("try_pour")
 		else:
@@ -62,6 +67,8 @@ func _process(delta: float) -> void:
 	_shop_ready = _near_shop() and _looking_at_shop()
 	if _shop_ready:
 		prompt = PROMPT_SHOP
+	elif hammer:
+		prompt = ""
 	elif _near_spring() and _looking_at_spring():
 		if carried < capacity:
 			prompt = PROMPT_FILL

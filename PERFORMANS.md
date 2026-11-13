@@ -50,3 +50,13 @@ Ortak sınırlar: tekrar eden nesneler MultiMesh; Compatibility'ye düşüşte a
 Dikey eşzamanlama açıkken Düşük ve Orta ekranın 60 Hz'ine kilitlenir. Yüksek bu bilgisayarda en kötü kadrajda 55 FPS civarı; hedefin (30) üstünde. Ölçümler ardışık çalıştırmalar arasında yaklaşık yüzde 30 oynar (özellikle Düşük/Orta).
 
 Renk dengesi düzeltmesi sonrası (doğuş noktası, elde 5 su, dikey eşzamanlama kapalı): Düşük 270-418 FPS, Orta 123-220 FPS, Yüksek 59,5 FPS; Compatibility'ye düşüşte Orta 164 FPS.
+
+### Kanal alanı ve yapılar (Intel Iris Xe, 1280x720, kanal örnek ağı: 41 parça, iki pınar açık; dikey eşzamanlama açık, bu yüzden Düşük/Orta 60'a kilitli)
+
+| Kadraj | Düşük FPS | Orta FPS | Yüksek FPS | Üçgen (D / O / Y) | Çizim çağrısı (D / O / Y) |
+|---|---|---|---|---|---|
+| Kanal yakın, göz hizası (çekiç eldeyken değil) | 60 | 60 | 52 | 42.489 / 113.107 / 157.351 | 101 / 134 / 141 |
+| Kanal genel, 7 m yükseklikten | - | 60 | - | - / yaklaşık 118.000 / - | - / yaklaşık 142 / - |
+| Kanal önizlemesi ve çekiç eldeyken (ızgara, bilgi kutusu) | - | 60 | - | - / 123.467 / - | - / 163 / - |
+| Bitki senaryosu, 25.000 damla, kıyıdan | - | 60 | - | - / 107.851 / - | - / 82 / - |
+| Kanal yakın, Compatibility çizicisi (Orta) | - | 60 | - | - | - |

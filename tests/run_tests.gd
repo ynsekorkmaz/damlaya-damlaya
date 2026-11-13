@@ -9,6 +9,7 @@ const SpringBuilder = preload("res://scripts/world/spring_builder.gd")
 const LakeShape = preload("res://scripts/core/lake_shape.gd")
 const BasinShape = preload("res://scripts/core/basin_shape.gd")
 const Cfg = preload("res://scripts/core/economy_config.gd")
+const CanalField = preload("res://scripts/core/canal_field.gd")
 
 var _failures: int = 0
 var _checks: int = 0
@@ -27,6 +28,7 @@ func _init() -> void:
 	test_bowl()
 	test_lake_shape()
 	test_spring()
+	test_canal_field()
 	print("Kontrol: %d, basarisiz: %d" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -390,3 +392,31 @@ func test_spring() -> void:
 	check(root_node.find_children("*", "CollisionShape3D", true, false).size() == SpringBuilder.blob_count(), "kaynak kayasi carpismali (kutle basina)")
 	check(root_node.get_node_or_null("Stream") != null and root_node.get_node_or_null("Puddle") != null, "serit ve birikinti var")
 	root_node.free()
+
+
+## Kanal alani: icinde zemin duz (fark < 2 cm), cevresi yumusak, dis arazi mesh'i ve yama ayni yukseklikte.
+func test_canal_field() -> void:
+	var lo: float = 1.0e9
+	var hi: float = -1.0e9
+	var br: float = BasinShape.radius(400000.0)
+	var bd: float = BasinShape.depth(400000.0)
+	var x: float = CanalField.west()
+	while x <= CanalField.east() + 0.001:
+		var z: float = CanalField.north()
+		while z <= CanalField.south() + 0.001:
+			var h: float = TerrainShape.height(x, z, br, bd)
+			lo = minf(lo, h)
+			hi = maxf(hi, h)
+			z += 0.5
+		x += 0.5
+	check(hi - lo < 0.02, "kanal alani icinde yukseklik farki < 2 cm (%f)" % (hi - lo))
+	check(absf(TerrainShape.height(-34.0, 0.0) - Config.CANAL_FIELD_HEIGHT) < 0.02, "kanal alani CANAL_FIELD_HEIGHT yuksekliginde")
+	var mesh: ArrayMesh = TerrainBuilder.build_mesh()
+	var verts: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var worst: float = 0.0
+	var inside: int = 0
+	for v: Vector3 in verts:
+		if CanalField.contains(v.x, v.z, 0.0):
+			inside += 1
+			worst = maxf(worst, absf(v.y - Config.CANAL_FIELD_HEIGHT))
+	check(inside > 100 and worst < 0.02, "dis arazi mesh'i alan icinde duz (%d kose, sapma %f)" % [inside, worst])

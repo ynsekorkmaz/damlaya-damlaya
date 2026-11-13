@@ -1,7 +1,8 @@
 extends Node3D
 ## Sahneyi kodla kurar. `--screenshot=<yol>` verilirse ölçüm yapıp çıkar.
 ## Ek argümanlar: --quality=low|medium|high (ayar dosyasına yazmadan), --no-save, --open-menu, --open-shop, --open-upgrades[=aletler|su|kaynaklar|kayip|kanal],
-## --debug-drops/money/tool/carried/canal/hammer.
+## --debug-drops/money/tool/carried/canal/hammer, --debug-build=kanal|bitki, --equip-hammer, --open-book[=kanal|bitki|kaynak],
+## --select-build=<yapi_id>, --camera-y=<m> (kamera yuksekligi). --equip-hammer / --select-build ekran goruntusunde fare yakalanmis gibi calisir.
 
 const Config = preload("res://scripts/core/config.gd")
 const TerrainShape = preload("res://scripts/core/terrain_shape.gd")
@@ -15,6 +16,8 @@ const Economy = preload("res://scripts/core/economy.gd")
 const Cfg = preload("res://scripts/core/economy_config.gd")
 const BasinShape = preload("res://scripts/core/basin_shape.gd")
 const GameState = preload("res://scripts/core/game_state.gd")
+const Pieces = preload("res://scripts/core/canal_pieces.gd")
+const Build = preload("res://scripts/core/build.gd")
 
 
 func _ready() -> void:
@@ -56,17 +59,59 @@ func _ready() -> void:
 	vessel.set("game", game)
 	(player.call("get_camera") as Camera3D).add_child(vessel)
 
+	var hud: CanvasLayer = null
+	if ResourceLoader.exists("res://scripts/ui/hud.gd"):
+		hud = CanvasLayer.new()
+		hud.set_script(load("res://scripts/ui/hud.gd"))
+		hud.set("game", game)
+		add_child(hud)
+
+	var equipment := Node.new()
+	equipment.set_script(preload("res://scripts/player/equipment.gd"))
+	equipment.set("game", game)
+	equipment.set("player", player)
+	add_child(equipment)
+
+	var hammer_view := Node3D.new()
+	hammer_view.set_script(preload("res://scripts/player/held_hammer.gd"))
+	hammer_view.set("equipment", equipment)
+	hammer_view.set("vessel", vessel)
+	(player.call("get_camera") as Camera3D).add_child(hammer_view)
+
 	var interaction := Node.new()
 	interaction.set_script(preload("res://scripts/player/interaction.gd"))
 	interaction.set("game", game)
 	interaction.set("player", player)
+	interaction.set("equipment", equipment)
 	add_child(interaction)
 
-	if ResourceLoader.exists("res://scripts/ui/hud.gd"):
-		var hud := CanvasLayer.new()
-		hud.set_script(load("res://scripts/ui/hud.gd"))
-		hud.set("game", game)
-		add_child(hud)
+	var build_controller := Node.new()
+	build_controller.set_script(preload("res://scripts/player/build_controller.gd"))
+	build_controller.set("game", game)
+	build_controller.set("player", player)
+	build_controller.set("equipment", equipment)
+	build_controller.set("lake", lake)
+	build_controller.set("hud", hud)
+	build_controller.set("hammer_view", hammer_view)
+	add_child(build_controller)
+	interaction.set("build", build_controller)
+
+	var canal_view := Node3D.new()
+	canal_view.set_script(preload("res://scripts/world/canal_view.gd"))
+	add_child(canal_view)
+	var structures_view := Node3D.new()
+	structures_view.set_script(preload("res://scripts/world/structures_view.gd"))
+	add_child(structures_view)
+	var field_view := Node3D.new()
+	field_view.set_script(preload("res://scripts/world/canal_field_view.gd"))
+	add_child(field_view)
+
+	var build_hud := CanvasLayer.new()
+	build_hud.set_script(preload("res://scripts/ui/build_hud.gd"))
+	build_hud.set("game", game)
+	build_hud.set("equipment", equipment)
+	build_hud.set("player", player)
+	add_child(build_hud)
 
 	var shop_panel := CanvasLayer.new()
 	shop_panel.set_script(preload("res://scripts/ui/shop_panel.gd"))
@@ -83,6 +128,7 @@ func _ready() -> void:
 	var debug_hud := CanvasLayer.new()
 	debug_hud.set_script(preload("res://scripts/ui/debug_hud.gd"))
 	debug_hud.set("settings", settings)
+	debug_hud.set("equipment", equipment)
 	add_child(debug_hud)
 
 	var pause_menu := CanvasLayer.new()
@@ -92,12 +138,21 @@ func _ready() -> void:
 	pause_menu.set("settings", settings)
 	add_child(pause_menu)
 
+	var book := CanvasLayer.new()
+	book.set_script(preload("res://scripts/ui/build_book.gd"))
+	book.set("game", game)
+	book.set("player", player)
+	book.set("equipment", equipment)
+	add_child(book)
+
 	var manager := Node.new()
 	manager.set_script(preload("res://scripts/ui/panel_manager.gd"))
 	manager.set("game", game)
 	manager.set("shop", shop_panel)
 	manager.set("upgrades", upgrades_panel)
 	manager.set("pause", pause_menu)
+	manager.set("book", book)
+	manager.set("equipment", equipment)
 	add_child(manager)
 
 	var st: GameState = game.get("state")
@@ -109,6 +164,13 @@ func _ready() -> void:
 	var open_menu: bool = false
 	var open_upgrades: bool = false
 	var upgrades_section: String = ""
+	var debug_build: String = ""
+	var equip_hammer: bool = false
+	var open_book: bool = false
+	var book_section: String = ""
+	var select_build: String = ""
+	var camera_y: float = -1.0
+	var screenshot_mode: bool = false
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--camera-at="):
 			cam_at = _parse_xz(arg.substr("--camera-at=".length()))
@@ -134,12 +196,30 @@ func _ready() -> void:
 		elif arg == "--debug-hammer":
 			st.hammer_unlocked = true
 			st.hammer_owned = true
+		elif arg.begins_with("--debug-build="):
+			debug_build = arg.substr("--debug-build=".length())
+		elif arg == "--equip-hammer":
+			equip_hammer = true
+		elif arg == "--open-book" or arg.begins_with("--open-book="):
+			open_book = true
+			book_section = arg.substr("--open-book=".length()) if arg.contains("=") else ""
+		elif arg.begins_with("--select-build="):
+			select_build = arg.substr("--select-build=".length())
+		elif arg.begins_with("--camera-y="):
+			camera_y = arg.substr("--camera-y=".length()).to_float()
+		elif arg.begins_with("--screenshot="):
+			screenshot_mode = true
 		elif arg == "--open-shop":
 			open_shop = true
 		elif arg == "--open-menu":
 			open_menu = true
+	if not debug_build.is_empty():
+		_apply_debug_build(game, st, debug_build)
 	if debug_carried >= 0.0:
 		st.carried = minf(debug_carried, Economy.tool_capacity(st))
+	canal_view.call("bind", game)
+	structures_view.call("bind", game, lake)
+	field_view.call("bind", game, lake, equipment, player)
 	var basin_r: float = BasinShape.radius(st.total_drops)
 	var basin_d: float = BasinShape.depth(st.total_drops)
 	(terrain.get_node("Patch") as Node).call("bind", game)
@@ -149,6 +229,14 @@ func _ready() -> void:
 			player.rotation.y = atan2(cam_at.x - look_at.x, cam_at.y - look_at.y)
 	if pitch_deg != 0.0:
 		(player.call("get_camera") as Camera3D).rotation.x = deg_to_rad(pitch_deg)
+	if camera_y >= 0.0:
+		(player.call("get_camera") as Camera3D).position.y = camera_y
+	if equip_hammer or not select_build.is_empty():
+		equipment.call("set_slot", 1)
+	if not select_build.is_empty():
+		equipment.call("select", ("canal:" if Pieces.has_piece(select_build) else "free:") + select_build)
+	if screenshot_mode and (equip_hammer or not select_build.is_empty()):
+		build_controller.set("debug_force", true)
 
 	if open_shop:
 		shop_panel.call("open")
@@ -156,10 +244,65 @@ func _ready() -> void:
 		upgrades_panel.call("open_section", upgrades_section)
 	if open_menu:
 		pause_menu.call("open")
+	if open_book:
+		book.call("open_section", book_section)
 
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--screenshot="):
 			_capture_and_quit(arg.substr("--screenshot=".length()))
+
+
+## Ekran goruntusu senaryolari: "kanal" (ornek ag) ve "bitki" (kamis, agac, her kaynaktan bir tane).
+func _apply_debug_build(game: Node, st: GameState, scenario: String) -> void:
+	st.hammer_unlocked = true
+	st.hammer_owned = true
+	st.canal_unlocked = true
+	st.money = maxf(st.money, 1.0e7)
+	st.total_money_earned = maxf(st.total_money_earned, st.money)
+	for id: String in Pieces.PIECE_IDS:
+		if not st.unlocked_pieces.has(id):
+			st.unlocked_pieces.append(id)
+	for id: String in Pieces.MATERIAL_IDS:
+		if not st.unlocked_materials.has(id):
+			st.unlocked_materials.append(id)
+	if scenario == "kanal":
+		var net: Object = game.get("canal")
+		net.call("open_spring", "A")
+		net.call("open_spring", "B")
+		_build_sample_network(net)
+	elif scenario == "bitki":
+		for kind: String in ["reeds", "shade_tree"]:
+			if not st.unlocked_structures.has(kind):
+				st.unlocked_structures.append(kind)
+		for def: Dictionary in Cfg.SOURCES:
+			if not st.unlocked_sources.has(String(def["id"])):
+				st.unlocked_sources.append(String(def["id"]))
+		for i in range(5):
+			Build.add(st, "reeds", 0.0, 0.0, 0.0, false)
+		for i in range(4):
+			Build.add(st, "shade_tree", 0.0, 0.0, 0.0, false)
+		for def: Dictionary in Cfg.SOURCES:
+			Build.add(st, String(def["id"]), 0.0, 0.0, 0.0, false)
+
+
+## A pinarindan goele duz hat; B pinarindan degirmen, savak, dirsek, T, su kemeri, arti, havuz ve Y iceren ikinci hat.
+func _build_sample_network(net: Object) -> void:
+	for col in range(14):
+		var mat: String = "earth" if col < 4 else ("wood" if col < 10 else "stone")
+		var piece: String = "cross" if col == 4 else "straight"
+		net.call("place", col, 4, piece, 0, "stone" if col == 4 else mat)
+	var list: Array = [
+		[0, 1, "straight", 0, "wood"], [1, 1, "straight", 0, "wood"], [2, 1, "mill", 0, "wood"], [3, 1, "gate", 0, "wood"],
+		[4, 1, "elbow", 0, "wood"], [4, 2, "tee", 3, "wood"], [4, 3, "aqueduct", 0, "stone"],
+		[5, 2, "straight", 0, "wood"], [6, 2, "reservoir", 0, "stone"], [7, 2, "wye", 0, "wood"],
+		[7, 1, "elbow", 3, "wood"], [7, 3, "elbow", 2, "wood"],
+		[8, 2, "straight", 0, "wood"], [9, 2, "straight", 0, "earth"], # kuru, bagli olmayan iki parca
+	]
+	for col in range(8, 14):
+		list.append([col, 1, "straight", 0, "wood"])
+		list.append([col, 3, "straight", 0, "stone"])
+	for e: Array in list:
+		net.call("place", e[0], e[1], e[2], e[3], e[4])
 
 
 func _parse_xz(text: String) -> Vector2:

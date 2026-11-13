@@ -3,6 +3,9 @@ extends RefCounted
 
 const Cfg = preload("res://scripts/core/economy_config.gd")
 const GameState = preload("res://scripts/core/game_state.gd")
+const Build = preload("res://scripts/core/build.gd")
+const BuildCfg = preload("res://scripts/core/build_config.gd")
+const Pieces = preload("res://scripts/core/canal_pieces.gd")
 
 
 # ---------- Arama yardimcilari ----------
@@ -21,8 +24,9 @@ static func loss_def(id: String) -> Dictionary:
 	return {}
 
 
+## Kurulu (ve goc ile gelen yerlestirilmemis) kaynak adedi; structures'tan turetilir.
 static func source_count(state: GameState, id: String) -> int:
-	return int(state.sources.get(id, 0))
+	return Build.count(state, id)
 
 
 # ---------- Tasima ----------
@@ -191,16 +195,11 @@ static func buy_rate(state: GameState) -> bool:
 
 # ---------- Pasif kaynaklar ----------
 
-## floor(ilkMaliyet * 1.15^adet). Bilinmeyen id ya da ust sinir icin -1.
+## Siradaki adedin fiyati: floor(ilkMaliyet * 1.15^adet). Bilinmeyen id icin -1.
 static func cost_source(state: GameState, id: String) -> float:
-	var def: Dictionary = source_def(id)
-	if def.is_empty():
+	if source_def(id).is_empty():
 		return -1.0
-	var count: int = source_count(state, id)
-	if count >= Cfg.MAX_SOURCE_COUNT:
-		return -1.0
-	# Kayan nokta hatasi (100 * 1,15 = 114,999...) yuzunden eksik yuvarlanmasin diye kucuk pay eklenir.
-	return floorf(float(def["base_cost"]) * pow(Cfg.SOURCE_COST_GROWTH, count) + Cfg.COST_ROUND_EPSILON)
+	return Build.next_cost(state, id)
 
 
 static func source_unlocked(state: GameState, id: String) -> bool:
@@ -209,28 +208,15 @@ static func source_unlocked(state: GameState, id: String) -> bool:
 
 ## floor(ilkMaliyet * 0.5); acilmissa ya da bilinmiyorsa -1.
 static func cost_source_unlock(state: GameState, id: String) -> float:
-	var def: Dictionary = source_def(id)
-	if def.is_empty() or source_unlocked(state, id):
+	if source_def(id).is_empty():
 		return -1.0
-	return floorf(float(def["base_cost"]) * Cfg.SOURCE_UNLOCK_FRACTION + Cfg.COST_ROUND_EPSILON)
+	return Build.unlock_cost(state, id)
 
 
 static func unlock_source(state: GameState, id: String) -> bool:
-	var cost: float = cost_source_unlock(state, id)
-	if cost < 0.0 or state.money < cost:
+	if source_def(id).is_empty():
 		return false
-	state.money -= cost
-	state.unlocked_sources.append(id)
-	return true
-
-
-static func buy_source(state: GameState, id: String) -> bool:
-	var cost: float = cost_source(state, id)
-	if cost < 0.0 or not source_unlocked(state, id) or state.money < cost:
-		return false
-	state.money -= cost
-	state.sources[id] = source_count(state, id) + 1
-	return true
+	return Build.unlock(state, id)
 
 
 ## Kayiptan once, damla/sn.
@@ -269,15 +255,113 @@ static func canal_section_visible(state: GameState) -> bool:
 	return state.canal_unlocked or state.total_drops >= Cfg.CANAL_VISIBLE_DROPS
 
 
+## Kanal parcasi kilidi: acilmissa ya da bilinmiyorsa -1.
+static func cost_piece_unlock(state: GameState, id: String) -> float:
+	if not Pieces.has_piece(id) or state.unlocked_pieces.has(id):
+		return -1.0
+	return float(Pieces.PIECES[id]["unlock_cost"])
+
+
+static func piece_unlocked(state: GameState, id: String) -> bool:
+	return state.unlocked_pieces.has(id)
+
+
+static func unlock_piece(state: GameState, id: String) -> bool:
+	var cost: float = cost_piece_unlock(state, id)
+	if cost < 0.0 or state.money < cost:
+		return false
+	state.money -= cost
+	state.unlocked_pieces.append(id)
+	return true
+
+
+static func cost_material_unlock(state: GameState, id: String) -> float:
+	if not Pieces.has_material(id) or state.unlocked_materials.has(id):
+		return -1.0
+	return float(Pieces.MATERIALS[id]["unlock_cost"])
+
+
+static func material_unlocked(state: GameState, id: String) -> bool:
+	return state.unlocked_materials.has(id)
+
+
+static func unlock_material(state: GameState, id: String) -> bool:
+	var cost: float = cost_material_unlock(state, id)
+	if cost < 0.0 or state.money < cost:
+		return false
+	state.money -= cost
+	state.unlocked_materials.append(id)
+	return true
+
+
+## Gelistirmeler'de parca/malzeme satiri: acik ya da kilit maliyeti gorunur (acma maliyeti 0 olanlar listelenmez).
+static func piece_row_visible(state: GameState, id: String) -> bool:
+	if not Pieces.has_piece(id) or int(Pieces.PIECES[id]["unlock_cost"]) <= 0:
+		return false
+	return piece_unlocked(state, id) or is_visible(state, cost_piece_unlock(state, id))
+
+
+static func material_row_visible(state: GameState, id: String) -> bool:
+	if not Pieces.has_material(id) or int(Pieces.MATERIALS[id]["unlock_cost"]) <= 0:
+		return false
+	return material_unlocked(state, id) or is_visible(state, cost_material_unlock(state, id))
+
+
+# ---------- Cekic ----------
+
+## Acilmamissa kilit maliyeti, acilmissa -1.
+static func cost_hammer_unlock(state: GameState) -> float:
+	if state.hammer_unlocked:
+		return -1.0
+	return BuildCfg.HAMMER_UNLOCK_COST
+
+
+static func unlock_hammer(state: GameState) -> bool:
+	var cost: float = cost_hammer_unlock(state)
+	if cost < 0.0 or state.money < cost:
+		return false
+	state.money -= cost
+	state.hammer_unlocked = true
+	return true
+
+
+## Dukkan fiyati; zaten alinmissa -1. Kilit acik mi bakmaz.
+static func cost_hammer(state: GameState) -> float:
+	if state.hammer_owned:
+		return -1.0
+	return BuildCfg.HAMMER_COST
+
+
+## Dukkanda satin alma: yalnizca kilidi acik cekic.
+static func buy_hammer(state: GameState) -> bool:
+	var cost: float = cost_hammer(state)
+	if cost < 0.0 or not state.hammer_unlocked or state.money < cost:
+		return false
+	state.money -= cost
+	state.hammer_owned = true
+	return true
+
+
+## Gelistirmeler'de cekic satiri: kilidi acik ya da kilit maliyeti gorunur.
+static func hammer_row_visible(state: GameState) -> bool:
+	return state.hammer_unlocked or is_visible(state, cost_hammer_unlock(state))
+
+
+## Dukkanda cekic satiri: alinmis ya da dukkan fiyati gorunur.
+static func hammer_shop_visible(state: GameState) -> bool:
+	return state.hammer_owned or is_visible(state, cost_hammer(state))
+
+
 # ---------- Kayip ----------
 
-## 0..1 arasi; yalnizca pasif uretime uygulanir.
+## 0..1 arasi; yalnizca pasif uretime uygulanir. Tek seferlik yukseltmeler + kamis/golge agaci yapilari (7'şer tavanli).
 static func loss_fraction(state: GameState) -> float:
 	var percent: float = Cfg.BASE_LOSS_PERCENT
 	for id: String in state.loss_upgrades:
 		var def: Dictionary = loss_def(id)
 		if not def.is_empty():
 			percent -= float(def["points"])
+	percent -= Build.loss_points(state)
 	return maxf(percent, Cfg.MIN_LOSS_PERCENT) / 100.0
 
 
@@ -403,6 +487,13 @@ static func source_row_visible(state: GameState, id: String) -> bool:
 	if source_def(id).is_empty():
 		return false
 	return source_unlocked(state, id) or is_visible(state, cost_source_unlock(state, id))
+
+
+## Kamis / golge agaci satiri: kilidi acik ya da kilit maliyeti gorunur.
+static func structure_row_visible(state: GameState, kind: String) -> bool:
+	if not Build.is_kind(kind):
+		return false
+	return Build.is_unlocked(state, kind) or is_visible(state, Build.unlock_cost(state, kind))
 
 
 static func rate_visible(state: GameState) -> bool:

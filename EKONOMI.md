@@ -1,12 +1,12 @@
 # Ekonomi tasarımı
 
-Tüm sayılar `scripts/core/economy_config.gd` içinde; mantık `economy.gd`, durum `game_state.gd`, kayıt `save_codec.gd`.
+Tüm sayılar `scripts/core/economy_config.gd` ve `build_config.gd` içinde; mantık `economy.gd` ve `build.gd` (serbest yapılar), durum `game_state.gd`, kayıt `save_codec.gd`.
 
 ## Döngü
 
 - Kaynaktan su doldur (kapasite 1,5 sn'de dolar), çukura dök.
 - Göle ulaşan her damla (elle, pasif kaynak, kanal) o anki oranla paraya çevrilir: `para += damla / damlaBaşınaPara`.
-- Satın alma iki yerde: Tab ile açılan Geliştirmeler ekranında kilitler, yükseltmeler ve pasif kaynaklar; dükkân tezgâhında (E) yalnızca elle tutulan aletler. Göl aşama aşama büyür.
+- Satın alma üç yerde: Tab ile açılan Geliştirmeler ekranında kilitler ve yükseltmeler; dükkân tezgâhında (E) elle tutulan aletler ve çekiç; dünyada çekiçle (Q) yapılar (kanal parçaları, kamış, gölge ağacı, pasif kaynaklar). Göl aşama aşama büyür.
 - Oyun sonu: toplam damla >= 2.000.000.
 
 ## Taşıma aletleri (sırayla)
@@ -34,39 +34,60 @@ Tüm sayılar `scripts/core/economy_config.gd` içinde; mantık `economy.gd`, du
 | 3 | 2 | 8.000 |
 | 4 | 1 | 120.000 |
 
-## Pasif kaynaklar
+## Çekiç
 
-Adet alımı Geliştirmeler'den; dükkânda yok. Önce kilit açılır: `floor(ilkMaliyet * 0,5)` (çatlak 7, çiğ 50, bulut 550, kaynak 6.000, dere ağzı 75.000). Adet maliyeti: `floor(ilkMaliyet * 1,15^adet)`
+Su taşıma aletlerinden bağımsızdır (`TOOLS` dizisinde değil; durumda `hammer_unlocked`, `hammer_owned`). Önce Geliştirmeler'in Aletler bölümünden kilidi açılır (40 para), sonra dükkândan alınır (60 para). Çekiç olmadan hiçbir yapı kurulamaz (kanal parçası, kamış, ağaç, pasif kaynak); sökme ve döndürme de çekiç ister. Görünürlük kuralı diğerleriyle aynı: kilit satırı 20 paraya, dükkân satırı 30 paraya ulaşınca görünür.
 
-| Kaynak | Damla/sn | İlk maliyet |
+## Serbest yapılar
+
+Konumları dünyada olan yapılar `state.structures` listesinde durur; öğe `{kind, x, z, rot, placed}`. `placed=false` eski kayıttan göçen, konumu henüz verilmemiş yapıdır; dünya katmanı bunları bir yere dizer ve `set_structure_position` ile konum verir. Tek doğruluk kaynağı bu liste: `state.counts` (tür başına adet) ondan türetilir, elle değiştirilmez. En fazla 2.000 yapı.
+
+Yerleştirme koşulları sırayla: çekiç, kilit (Geliştirmeler'den), azami adet, para. Kilitli bir yapı çekiçle de kurulamaz ("Önce Geliştirmeler'den (Tab) kilidini aç"). Konum kuralları (kıyıya yakınlık vb.) dünya katmanındadır; mantık yalnızca sayar. Adet maliyeti `floor(ilkMaliyet * çarpan^mevcutAdet)`; sökünce söküldükten sonraki adetle hesaplanan fiyatın yarısı iade edilir.
+
+### Pasif kaynaklar
+
+Önce kilit açılır: `floor(ilkMaliyet * 0,5)` (çatlak 7, çiğ otu 50, bulut direği 550, çeşme 6.000, dere ağzı 75.000). Her adet çekiçle kurulan bir yapıdır; Tab'dan adet alınmaz. Adet maliyeti: `floor(ilkMaliyet * 1,15^adet)`.
+
+| Yapı (id) | Damla/sn | İlk maliyet |
 |---|---|---|
-| Çatlak | 0,5 | 15 |
-| Çiğ | 3 | 100 |
-| Yağmur bulutu | 20 | 1.100 |
-| Kaynak | 120 | 12.000 |
-| Dere ağzı | 700 | 150.000 |
+| Çatlak (crack) | 0,5 | 15 |
+| Çiğ otu (dew) | 3 | 100 |
+| Bulut direği (rain_cloud) | 20 | 1.100 |
+| Çeşme (spring) | 120 | 12.000 |
+| Dere ağzı (stream_mouth) | 700 | 150.000 |
+
+### Kamış ve gölge ağacı
+
+Her biri kaybı 1 puan düşürür; en fazla 7 tanesi sayılır. 7'den sonra da kurulabilir ama etkisizdir (`can_place_structure` sonucundaki `note_tr`: "Daha fazlası kaybı azaltmaz"). Maliyet `floor(taban * 1,5^adet)`.
+
+| Yapı (id) | Kilit | İlk maliyet | Etki |
+|---|---|---|---|
+| Kamış öbeği (reeds) | 300 | 60 | 7 adete kadar -1 puan |
+| Gölge ağacı (shade_tree) | 3.000 | 700 | 7 adete kadar -1 puan |
 
 ## Kayıp
 
 - Pasif üretimin %30'u sızar; elle dökülen ve kanaldan gelen suya uygulanmaz.
 - Net üretim: `brüt * (1 - kayıp)`.
+- Tek seferlik yükseltmeler Tab'da kalır; kamış ve ağaç yapılarının etkisi eski "Kamış kenarı" (7) ve "Gölge ağaçları" (7) yükseltmelerinin yerini alır (aynı tavan).
 
-| Yükseltme | Maliyet | Puan |
+| Kalem | Maliyet | Puan |
 |---|---|---|
-| Kaya yatağı | 200 | 8 |
-| Kamış kenarı | 2.500 | 7 |
-| Gölge ağaçları | 30.000 | 7 |
-| Kil taban | 400.000 | 5 |
+| Kaya yatağı (yükseltme) | 200 | 8 |
+| Kil taban (yükseltme) | 400.000 | 5 |
+| Kamış öbekleri (yapı, 7'ye kadar) | 60'tan başlar | 7 |
+| Gölge ağaçları (yapı, 7'ye kadar) | 700'den başlar | 7 |
 
-Hepsi alınınca kayıp %3.
+Hepsi olunca kayıp %3.
 
 ## Kanal
 
-Kanal izgarasının fiyatları `canal_config.gd`'de, mantığı `canal_grid.gd`'de; ödeme ekonomi parasından yapılır.
+Kanal ağının mantığı `canal_network.gd` ve `canal_network_flow.gd`'de, fiyatlar ve kilit maliyetleri `canal_pieces.gd`'de (bkz. KANAL.md); ödeme ekonomi parasından yapılır. Oyun artık yalnızca bu ağı kullanır.
 
 - Kanal sistemi kilidi: 300 para; kilit açılana kadar bölüm yalnızca toplam damla >= 2.000 olunca görünür.
-- Kilit açılınca: pınar açma (A 4.000, B 30.000, C 200.000), geniş kanal (4 seviye), taş kaplama (3 seviye).
-- Kanal döşeme oyunu henüz bağlı değil; kanal parçaları ileride dükkânda satılacak.
+- Kilit açılınca Tab'ın Kanal bölümü dört alt başlıkta: Pınarlar (A 4.000, B 30.000, C 200.000), Yükseltmeler (geniş kanal 4 seviye, taş kaplama 3 seviye), Parçalar (dirsek 50, T 150, Y 400, artı 600, savak 900, değirmen 1.200, su kemeri 3.000, biriktirme havuzu 6.000), Malzemeler (ahşap 800, taş 8.000). Düz kanal ve toprak baştan açık.
+- Parça ve malzemeler çekiçle yerleştirilir (`can_place_canal` / `place_canal`); kilitli parça ya da malzeme yerleştirilemez.
+- Kanal teslimatı her karede göle eklenir (kayıp uygulanmaz).
 
 ## Aşamalar
 
@@ -84,7 +105,7 @@ Kanal izgarasının fiyatları `canal_config.gd`'de, mantığı `canal_grid.gd`'
 ## Görünürlük
 
 - Öğe, toplam kazanılan para (`total_money_earned`) maliyetin yarısına ulaşınca görünür (kilit maliyeti, yükseltme maliyeti ya da dükkân maliyeti).
-- Kilidi açılmış öğenin alt satırları (kapasite yükseltmesi, adet alımı) kilit açılınca görünür.
+- Kilidi açılmış öğenin alt satırları (kapasite yükseltmesi) kilit açılınca görünür. Çekiç, kanal parçası/malzemesi, kamış ve ağaç kilitleri de aynı kuralı izler (kilit maliyetinin yarısı).
 
 ## Çevrimdışı
 
@@ -93,6 +114,8 @@ Kanal izgarasının fiyatları `canal_config.gd`'de, mantığı `canal_grid.gd`'
 
 ## Kayıt
 
-- `SAVE_VERSION = 2`; her alan doğrulanır, bozuk alan varsayılana döner, bilinmeyen id atılır.
-- Yeni alanlar: `tool_unlocked`, `tool_upgrades`, `unlocked_sources`, `canal_unlocked`.
+- `SAVE_VERSION = 3`; her alan doğrulanır, bozuk alan varsayılana döner, bilinmeyen id atılır.
+- Sürüm 2 alanları: `tool_unlocked`, `tool_upgrades`, `unlocked_sources`, `canal_unlocked`. Sürüm 3 alanları: `hammer_unlocked`, `hammer_owned`, `unlocked_pieces`, `unlocked_materials`, `unlocked_structures`, `structures`. `sources` alanı artık yazılmaz.
+- `structures` doğrulaması: bilinmeyen tür atılır, sayı olmayan ya da sonsuz koordinat atılır (bozuk dönüş 0 olur), en fazla 2.000 öğe.
 - Sürüm 1 (ya da sürümsüz) kayıt silinmez: `tool_level`e kadar aletler ve sahip olunan kaynaklar kilidi açık sayılır.
+- Sürüm 1 ve 2 göçü: eski `sources` adetleri kaybolmaz, konumsuz (`placed=false`) yapılara döner; eski "Kamış kenarı" ya da "Gölge ağaçları" alınmışsa 7'şer konumsuz kamış/ağaç olur (kayıp tavanı aynı kalır). Kanal kaydı `canal` alanında yeni ağ biçimiyle durur; eski ızgara biçimi sessizce boş ağa döner (çökme yok, eski kanal parası geri verilmez).

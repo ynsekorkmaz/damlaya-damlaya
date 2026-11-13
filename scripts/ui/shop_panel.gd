@@ -6,15 +6,17 @@ extends CanvasLayer
 const Economy = preload("res://scripts/core/economy.gd")
 const Cfg = preload("res://scripts/core/economy_config.gd")
 const GameState = preload("res://scripts/core/game_state.gd")
+const BuildCfg = preload("res://scripts/core/build_config.gd")
 const NumberFormat = preload("res://scripts/core/number_format.gd")
 const UiTheme = preload("res://scripts/ui/ui_theme.gd")
 
-const PANEL_SIZE: Vector2 = Vector2(760.0, 360.0)
+const PANEL_SIZE: Vector2 = Vector2(760.0, 420.0)
 const INFO_WIDTH: float = 190.0
 const COST_WIDTH: float = 96.0
 const LOCKED_TEXT: String = "Kilitli: Geliştirmeler'den (Tab) aç"
 const EMPTY_TEXT: String = "Henüz alınacak bir şey yok. Su dök, para kazan."
 const DONE_TEXT: String = "Tüm aletler sende."
+const OWNED_TEXT: String = "Alındı"
 const FOOT_TEXT: String = "Yükseltmeler için Tab"
 const HINT_TEXT: String = "Enter: al    E ya da Esc: kapat"
 
@@ -25,12 +27,8 @@ var _root: Control
 var _content: VBoxContainer
 var _money_label: Label
 var _empty_label: Label
-var _row: PanelContainer
-var _name: Label
-var _desc: Label
-var _info: Label
-var _cost: Label
-var _button: Button
+var _tool_row: Dictionary = {} ## alet satırı: row, name, desc, info, cost, button
+var _hammer_row: Dictionary = {} ## çekiç satırı (aletlerden bağımsız)
 var _timer: float = 0.0
 var _open: bool = false
 
@@ -56,8 +54,7 @@ func open() -> void:
 	if player != null:
 		player.set("input_enabled", false)
 	_refresh()
-	if not _button.disabled:
-		_button.grab_focus()
+	_focus_first_enabled()
 
 
 func close() -> void:
@@ -79,8 +76,7 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if (event.is_action_pressed("ui_up") or event.is_action_pressed("ui_down")) \
-			and get_viewport().gui_get_focus_owner() == null and not _button.disabled:
-		_button.grab_focus()
+			and get_viewport().gui_get_focus_owner() == null and _focus_first_enabled():
 		get_viewport().set_input_as_handled()
 
 
@@ -140,7 +136,8 @@ func _build() -> void:
 	_empty_label = UiTheme.label(EMPTY_TEXT, UiTheme.NAME_SIZE, UiTheme.TEXT_DIM)
 	_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_content.add_child(_empty_label)
-	_build_row()
+	_tool_row = _build_row(_on_buy_tool)
+	_hammer_row = _build_row(_on_buy_hammer)
 
 	var foot: Label = UiTheme.label(FOOT_TEXT, UiTheme.INFO_SIZE, UiTheme.SECTION_COLOR)
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -150,41 +147,42 @@ func _build() -> void:
 	column.add_child(hint)
 
 
-func _build_row() -> void:
-	_row = PanelContainer.new()
-	_row.add_theme_stylebox_override("panel", UiTheme.row_style())
-	_content.add_child(_row)
+func _build_row(on_buy: Callable) -> Dictionary:
+	var row := PanelContainer.new()
+	row.add_theme_stylebox_override("panel", UiTheme.row_style())
+	_content.add_child(row)
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", 12)
-	_row.add_child(line)
+	row.add_child(line)
 
 	var texts := VBoxContainer.new()
 	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	texts.add_theme_constant_override("separation", 2)
 	line.add_child(texts)
-	_name = UiTheme.label("", UiTheme.NAME_SIZE, UiTheme.TEXT)
-	texts.add_child(_name)
-	_desc = UiTheme.label("", UiTheme.DESC_SIZE, UiTheme.TEXT_DIM)
-	_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_desc.custom_minimum_size.x = 120.0
-	texts.add_child(_desc)
+	var name_label: Label = UiTheme.label("", UiTheme.NAME_SIZE, UiTheme.TEXT)
+	texts.add_child(name_label)
+	var desc_label: Label = UiTheme.label("", UiTheme.DESC_SIZE, UiTheme.TEXT_DIM)
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_label.custom_minimum_size.x = 120.0
+	texts.add_child(desc_label)
 
-	_info = UiTheme.label("", UiTheme.INFO_SIZE, UiTheme.TEXT_DIM)
-	_info.custom_minimum_size.x = INFO_WIDTH
-	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	line.add_child(_info)
+	var info_label: Label = UiTheme.label("", UiTheme.INFO_SIZE, UiTheme.TEXT_DIM)
+	info_label.custom_minimum_size.x = INFO_WIDTH
+	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	info_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.add_child(info_label)
 
-	_cost = UiTheme.label("", UiTheme.COST_SIZE, UiTheme.MONEY_COLOR)
-	_cost.custom_minimum_size.x = COST_WIDTH
-	_cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_cost.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	line.add_child(_cost)
+	var cost_label: Label = UiTheme.label("", UiTheme.COST_SIZE, UiTheme.MONEY_COLOR)
+	cost_label.custom_minimum_size.x = COST_WIDTH
+	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	cost_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.add_child(cost_label)
 
-	_button = UiTheme.buy_button("Al")
-	line.add_child(_button)
-	_button.pressed.connect(_on_buy)
+	var button: Button = UiTheme.buy_button("Al")
+	line.add_child(button)
+	button.pressed.connect(on_buy)
+	return {"row": row, "name": name_label, "desc": desc_label, "info": info_label, "cost": cost_label, "button": button}
 
 
 # ---------- Veri ----------
@@ -206,33 +204,76 @@ func _refresh() -> void:
 		return
 	_set_text(_money_label, "Para: " + NumberFormat.format_money(state.money))
 	var has_next: bool = Economy.has_next_tool(state)
-	var show_row: bool = has_next and Economy.tool_visible(state)
-	_row.visible = show_row
-	_empty_label.visible = not show_row
+	var show_tool: bool = has_next and Economy.tool_visible(state)
+	var show_hammer: bool = Economy.hammer_shop_visible(state)
+	(_tool_row["row"] as Control).visible = show_tool
+	(_hammer_row["row"] as Control).visible = show_hammer
+	_empty_label.visible = not show_tool and not show_hammer
 	_set_text(_empty_label, EMPTY_TEXT if has_next else DONE_TEXT)
-	if not show_row:
-		return
-	var next: Dictionary = Cfg.TOOLS[state.tool_level + 1]
-	var unlocked: bool = Economy.next_tool_unlocked(state)
-	var cost: float = Economy.cost_tool(state)
-	_set_text(_name, next["name_tr"])
-	_set_text(_desc, next["desc_tr"] if unlocked else LOCKED_TEXT)
-	_set_text(_info, "Taşıma: %s → %s damla" % [NumberFormat.format_int(Economy.tool_capacity(state)), NumberFormat.format_int(next["capacity"])])
-	_set_text(_cost, NumberFormat.format_money(cost))
-	var can_buy: bool = unlocked and state.money >= cost
-	var label: String = "Al" if unlocked else "Kilitli"
-	if _button.text != label:
-		_button.text = label
-	_row.modulate.a = 1.0 if unlocked else UiTheme.DISABLED_ALPHA
-	var disabled: bool = not can_buy
-	if _button.disabled != disabled:
-		_button.disabled = disabled
-		if disabled and _button.has_focus():
-			_button.release_focus()
+	if show_tool:
+		var next: Dictionary = Cfg.TOOLS[state.tool_level + 1]
+		var unlocked: bool = Economy.next_tool_unlocked(state)
+		var cost: float = Economy.cost_tool(state)
+		_fill(_tool_row, {
+			"name": next["name_tr"],
+			"desc": next["desc_tr"] if unlocked else LOCKED_TEXT,
+			"info": "Taşıma: %s → %s damla" % [NumberFormat.format_int(Economy.tool_capacity(state)), NumberFormat.format_int(next["capacity"])],
+			"cost": NumberFormat.format_money(cost),
+			"label": "Al" if unlocked else "Kilitli",
+			"enabled": unlocked and state.money >= cost,
+			"alpha": 1.0 if unlocked else UiTheme.DISABLED_ALPHA,
+		})
+	if show_hammer:
+		var owned: bool = state.hammer_owned
+		var unlocked_h: bool = state.hammer_unlocked
+		var cost_h: float = Economy.cost_hammer(state)
+		_fill(_hammer_row, {
+			"name": BuildCfg.HAMMER_NAME_TR,
+			"desc": BuildCfg.HAMMER_DESC_TR if unlocked_h else LOCKED_TEXT,
+			"info": "Yapı kurar (Q)",
+			"cost": "" if owned else NumberFormat.format_money(cost_h),
+			"label": OWNED_TEXT if owned else ("Al" if unlocked_h else "Kilitli"),
+			"enabled": not owned and unlocked_h and state.money >= cost_h,
+			"alpha": 0.8 if owned else (1.0 if unlocked_h else UiTheme.DISABLED_ALPHA),
+		})
+
+
+## Satırın metinlerini ve düğme durumunu günceller; yalnızca değişeni yazar.
+func _fill(row: Dictionary, v: Dictionary) -> void:
+	_set_text(row["name"], v["name"])
+	_set_text(row["desc"], v["desc"])
+	_set_text(row["info"], v["info"])
+	_set_text(row["cost"], v["cost"])
+	var button: Button = row["button"]
+	if button.text != v["label"]:
+		button.text = v["label"]
+	var panel: Control = row["row"]
+	if panel.modulate.a != v["alpha"]:
+		panel.modulate.a = v["alpha"]
+	var disabled: bool = not v["enabled"]
+	if button.disabled != disabled:
+		button.disabled = disabled
+		if disabled and button.has_focus():
+			button.release_focus()
 		elif not disabled and _open and get_viewport().gui_get_focus_owner() == null:
-			_button.grab_focus()
+			button.grab_focus()
 
 
-func _on_buy() -> void:
+## Etkin ilk düğmeye odaklanır; yoksa false.
+func _focus_first_enabled() -> bool:
+	for row: Dictionary in [_tool_row, _hammer_row]:
+		var button: Button = row["button"]
+		if (row["row"] as Control).visible and not button.disabled:
+			button.grab_focus()
+			return true
+	return false
+
+
+func _on_buy_tool() -> void:
 	if game != null and game.call("buy_tool"):
+		_refresh()
+
+
+func _on_buy_hammer() -> void:
+	if game != null and game.call("buy_hammer"):
 		_refresh()

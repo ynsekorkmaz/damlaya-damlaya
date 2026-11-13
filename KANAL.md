@@ -1,6 +1,6 @@
 # Kanal sistemi: yönlü parçalar modeli
 
-Saf mantık dosyaları: `scripts/core/canal_pieces.gd` (katalog ve tüm sayılar), `canal_network.gd` (ızgara durumu, düzenleme, kayıt), `canal_network_flow.gd` (akış hesabı). Testler: `tests/canal_network_tests.gd`. Eski `canal_grid.gd`, `canal_flow.gd`, `canal_config.gd` değişmedi.
+Saf mantık dosyaları: `scripts/core/canal_pieces.gd` (katalog ve tüm sayılar), `canal_network.gd` (ızgara durumu, düzenleme, kayıt), `canal_network_flow.gd` (akış hesabı). Testler: `tests/canal_network_tests.gd`. Oyun (`game.gd`) artık yalnızca bu ağı kullanır; eski `canal_grid.gd`, `canal_flow.gd`, `canal_config.gd` ve `tests/canal_tests.gd` değişmedi, oyundan çağrılmaz.
 
 ## Model
 
@@ -51,3 +51,9 @@ Bileşen (bağlı düğüm kümesi) başına: kapasite = çıkış sayısı x ç
 ## Varsayılan düzen
 
 14 sütun x 10 satır, göl doğuda. Pınarlar batıda: A satır 4 (akış 60, açma 4.000), B satır 1 (180, 30.000), C satır 8 (480, 200.000). Eski 8x5 düzeni (A 2, B 0, C 4) `Pieces.LEGACY_*` ile kurulur.
+
+## Oyuna bağlanış
+
+`game.gd` varsayılan 14x10 ağı tutar ve dünya katmanına şu arayüzü sunar: `can_place_canal(col,row,piece_id,rotation,material)` (`{ok, reason_tr, cost}`), `place_canal(...)`, `remove_canal(col,row)` (iadeyi paraya ekler), `rotate_canal(col,row)`, `toggle_gate(col,row)`, `canal_result()` (önbellekli akış sonucu), `canal_piece_cost(piece_id, material)`; değişimde `structures_changed` yayılır. Yerleştirme için çekiç, açık kanal sistemi, açık parça türü ve malzeme gerekir; red nedenleri sırayla: çekiç yok, kanal kilitli, parça ya da malzeme kilitli, sınır dışı, hücre dolu, para yetmiyor.
+
+Kilitler durumda (`unlocked_pieces`, `unlocked_materials`) tutulur; düz kanal ve toprak baştan açıktır, diğerlerinin açma maliyeti Tab'ın Kanal bölümünden ödenir. Kayıtta ağ `network.to_dict()` ile `canal` alanındadır; eski ızgara kaydı okununca boş ağ olur. Teslimat (`delivered`) her karede göle eklenir, kayıp uygulanmaz.

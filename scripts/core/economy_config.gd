@@ -33,34 +33,33 @@ const RATE_LEVELS: Array[Dictionary] = [
 const RATE_NAME_TR: String = "Dönüşüm oranı"
 
 # --- Pasif kaynaklar ---
+# Her adet cekicle kurulan bir yapidir (build.gd); adet maliyeti floor(base_cost * 1,15^adet).
 const SOURCE_COST_GROWTH: float = 1.15
-const MAX_SOURCE_COUNT: int = 100000
 const COST_ROUND_EPSILON: float = 1.0e-6
 
-# Kaynak kilidi: ilk maliyetin bu orani (asagi yuvarlanir). Kilit acilmadan adet alinamaz.
+# Kaynak kilidi: ilk maliyetin bu orani (asagi yuvarlanir). Kilit acilmadan yapi kurulamaz.
 const SOURCE_UNLOCK_FRACTION: float = 0.5
 
 const SOURCES: Array[Dictionary] = [
 	{"id": "crack", "name_tr": "Çatlak", "desc_tr": "Kayadaki ince bir sızıntı.", "rate": 0.5, "base_cost": 15.0},
-	{"id": "dew", "name_tr": "Çiğ", "desc_tr": "Sabah otlardan süzülen damlalar.", "rate": 3.0, "base_cost": 100.0},
-	{"id": "rain_cloud", "name_tr": "Yağmur bulutu", "desc_tr": "Vadiye küçük bir yağmur getirir.", "rate": 20.0, "base_cost": 1100.0},
-	{"id": "spring", "name_tr": "Kaynak", "desc_tr": "Toprağın altından fışkıran taze su.", "rate": 120.0, "base_cost": 12000.0},
+	{"id": "dew", "name_tr": "Çiğ otu", "desc_tr": "Sabah otlardan süzülen damlalar.", "rate": 3.0, "base_cost": 100.0},
+	{"id": "rain_cloud", "name_tr": "Bulut direği", "desc_tr": "Vadiye küçük bir yağmur getirir.", "rate": 20.0, "base_cost": 1100.0},
+	{"id": "spring", "name_tr": "Çeşme", "desc_tr": "Toprağın altından fışkıran taze su.", "rate": 120.0, "base_cost": 12000.0},
 	{"id": "stream_mouth", "name_tr": "Dere ağzı", "desc_tr": "Yamaçtan inen bir dere göle bağlanır.", "rate": 700.0, "base_cost": 150000.0},
 ]
 
 # --- Kayip ---
-# Pasif uretimin tabani yuzde 30'u sizar. Yukseltmeler puan (yuzde birimi) dusurur.
+# Pasif uretimin tabani yuzde 30'u sizar. Yukseltmeler ve yapilar (kamis, golge agaci: build_config.gd) puan (yuzde birimi) dusurur.
+# Tum kalemlerle: 30 - 8 - 5 - 7 - 7 = 3.
 const BASE_LOSS_PERCENT: float = 30.0
 const MIN_LOSS_PERCENT: float = 0.0
 
 const LOSS_UPGRADES: Array[Dictionary] = [
 	{"id": "rock_bed", "name_tr": "Kaya yatağı", "desc_tr": "Çukurun tabanına taş döşenir.", "cost": 200.0, "points": 8.0},
-	{"id": "reed_edge", "name_tr": "Kamış kenarı", "desc_tr": "Kamışlar kıyıdan sızmayı keser.", "cost": 2500.0, "points": 7.0},
-	{"id": "shade_trees", "name_tr": "Gölge ağaçları", "desc_tr": "Gölgede daha az buharlaşır.", "cost": 30000.0, "points": 7.0},
 	{"id": "clay_floor", "name_tr": "Kil taban", "desc_tr": "Kil toprak suyu tutar.", "cost": 400000.0, "points": 5.0},
 ]
 
-# --- Kanal (kanal izgarasinin kendi fiyatlari canal_config.gd'de) ---
+# --- Kanal (parca, malzeme, pinar ve yukseltme fiyatlari canal_pieces.gd'de) ---
 const CANAL_UNLOCK_COST: float = 300.0
 const CANAL_VISIBLE_DROPS: float = 2000.0 ## Kanal bolumu toplam damla bu degere ulasinca gorunur
 const CANAL_NAME_TR: String = "Kanal sistemi"
@@ -96,6 +95,6 @@ const OFFLINE_MIN_SECONDS: float = 30.0
 const OFFLINE_CAP_SECONDS: float = 900.0
 
 # --- Kayit ---
-const SAVE_VERSION: int = 2
+const SAVE_VERSION: int = 3
 # Bundan buyuk sayilar bozuk sayilir.
 const SAVE_MAX_NUMBER: float = 1.0e15

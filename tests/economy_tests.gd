@@ -4,6 +4,7 @@ const Cfg = preload("res://scripts/core/economy_config.gd")
 const GameState = preload("res://scripts/core/game_state.gd")
 const Economy = preload("res://scripts/core/economy.gd")
 const SaveCodec = preload("res://scripts/core/save_codec.gd")
+const Build = preload("res://scripts/core/build.gd")
 
 var _failures: int = 0
 var _checks: int = 0
@@ -50,13 +51,28 @@ func _state() -> GameState:
 	return GameState.new()
 
 
-## Tum alet ve kaynak kilitleri acik durum (eski satin alma testleri icin).
+## Tum alet, kaynak ve yapi kilitleri acik, cekic elde (satin alma ve kurma testleri icin).
 func _unlocked_state() -> GameState:
 	var s: GameState = GameState.new()
 	s.tool_unlocked = Cfg.TOOLS.size() - 1
 	for def: Dictionary in Cfg.SOURCES:
 		s.unlocked_sources.append(def["id"])
+	s.unlocked_structures.append("reeds")
+	s.unlocked_structures.append("shade_tree")
+	s.hammer_unlocked = true
+	s.hammer_owned = true
 	return s
+
+
+## Konumlu yapi kurar (parali); durumdaki cekic ve kilitler uygunsa true.
+func _place(s: GameState, kind: String) -> bool:
+	return Build.place(s, kind, 3.0, -2.0, 0.5)
+
+
+## Odemesiz n yapi ekler (durumu kurmak icin).
+func _give(s: GameState, kind: String, n: int) -> void:
+	for i: int in n:
+		Build.add(s, kind, float(i), 0.0, 0.0)
 
 
 func _snapshot(s: GameState) -> Dictionary:
@@ -126,15 +142,15 @@ func test_source_costs() -> void:
 	for i: int in 3:
 		check(Economy.cost_source(s, "crack") == crack[i], "catlak maliyeti adet %d" % i)
 		s.money = 1.0e6
-		check(Economy.buy_source(s, "crack"), "catlak alinir")
+		check(_place(s, "crack"), "catlak kurulur")
 	check(Economy.cost_source(s, "crack") == crack[3], "catlak 4. maliyet")
 	var t: GameState = _unlocked_state()
 	for i: int in 3:
 		check(Economy.cost_source(t, "dew") == dew[i], "cig maliyeti adet %d" % i)
 		t.money = 1.0e6
-		Economy.buy_source(t, "dew")
+		_place(t, "dew")
 	check(Economy.cost_source(t, "yok") < 0.0, "bilinmeyen kaynak -1")
-	check(not Economy.buy_source(t, "yok"), "bilinmeyen kaynak alinmaz")
+	check(not _place(t, "yok"), "bilinmeyen kaynak kurulmaz")
 	check(Economy.source_count(s, "crack") == 3, "adet 3")
 
 
@@ -145,7 +161,17 @@ func test_loss() -> void:
 		s.money = 1.0e9
 		check(Economy.buy_loss(s, def["id"]), "kayip yukseltmesi %s" % def["id"])
 		check(not Economy.buy_loss(s, def["id"]), "ikinci kez alinmaz")
-	check(near(Economy.loss_fraction(s), 0.03), "tum yukseltmelerle kayip 3")
+	check(near(Economy.loss_fraction(s), 0.17), "tek seferlik yukseltmelerle kayip 17")
+	var u: GameState = _unlocked_state()
+	_give(u, "reeds", 7)
+	_give(u, "shade_tree", 7)
+	check(near(Economy.loss_fraction(u), 0.16), "7 kamis + 7 agac: kayip 16")
+	_give(s, "reeds", 7)
+	_give(s, "shade_tree", 7)
+	check(near(Economy.loss_fraction(s), 0.03), "tum kalemlerle kayip 3")
+	_give(s, "reeds", 5)
+	_give(s, "shade_tree", 5)
+	check(near(Economy.loss_fraction(s), 0.03), "7 den fazlasi kaybi azaltmaz")
 	var t: GameState = _state()
 	t.money = 200.0
 	Economy.buy_loss(t, "rock_bed")
@@ -154,7 +180,7 @@ func test_loss() -> void:
 
 func test_tick() -> void:
 	var s: GameState = _state()
-	s.sources["crack"] = 1
+	_give(s, "crack", 1)
 	check(near(Economy.passive_rate_net(s), 0.35), "catlak net 0.35/sn")
 	var added: float = Economy.tick(s, 10.0, 0.0)
 	check(near(added, 3.5) and near(s.total_drops, 3.5), "10 sn: 3.5 damla")
@@ -163,11 +189,11 @@ func test_tick() -> void:
 	var d: float = Economy.tick(t, 10.0, 2.0)
 	check(near(d, 20.0), "yalniz kanal: kayipsiz 20 damla")
 	var u: GameState = _state()
-	u.sources["crack"] = 1
+	_give(u, "crack", 1)
 	Economy.tick(u, 10.0, 2.0)
 	check(near(u.total_drops, 23.5), "pasif 3.5 + kanal 20")
 	var big: GameState = _state()
-	big.sources["dew"] = 2
+	_give(big, "dew", 2)
 	Economy.tick(big, 1.0e6, 0.0)
 	check(near(big.total_drops, 6.0 * 0.7 * 1.0e6, 1.0), "buyuk delta dogru")
 	check(Economy.tick(big, 0.0, 5.0) == 0.0, "delta 0")
@@ -222,7 +248,7 @@ func test_buy_fail() -> void:
 	var before: Dictionary = _snapshot(s)
 	check(not Economy.buy_tool(s), "tool yetmez")
 	check(not Economy.buy_rate(s), "rate yetmez")
-	check(not Economy.buy_source(s, "crack"), "kaynak yetmez")
+	check(not _place(s, "crack"), "kaynak yetmez")
 	check(not Economy.buy_loss(s, "rock_bed"), "kayip yetmez")
 	check(_snapshot(s) == before, "basarisiz alimda durum ayni")
 
@@ -245,22 +271,22 @@ func test_visibility() -> void:
 
 func test_offline() -> void:
 	var s: GameState = _state()
-	s.sources["crack"] = 1
+	_give(s, "crack", 1)
 	s.last_seen_unix = 1000
 	check(Economy.apply_offline(s, 1029) == 0.0, "29 sn 0")
 	check(s.last_seen_unix == 1000, "kisa surede last_seen ayni")
 	check(near(Economy.apply_offline(s, 1600), 210.0), "10 dk = 210 damla")
 	check(s.last_seen_unix == 1600, "last_seen guncel")
 	var t: GameState = _state()
-	t.sources["crack"] = 1
+	_give(t, "crack", 1)
 	t.last_seen_unix = 1000
 	check(near(Economy.apply_offline(t, 1000 + 5 * 3600), 315.0), "5 saat 900 sn ile sinirli")
 	var u: GameState = _state()
-	u.sources["crack"] = 1
+	_give(u, "crack", 1)
 	u.last_seen_unix = 1000
 	check(near(Economy.apply_offline(u, 1000 + 5 * 3600, 1.0), 315.0 + 900.0), "kanal teslimati eklenir")
 	var v: GameState = _state()
-	v.sources["crack"] = 1
+	_give(v, "crack", 1)
 	v.last_seen_unix = 5000
 	check(Economy.apply_offline(v, 4000) == 0.0, "negatif sure 0")
 	check(v.total_drops == 0.0, "negatif sure damla eklemez")
@@ -274,7 +300,15 @@ func _rich_state() -> GameState:
 	s.tool_level = 3
 	s.rate_level = 2
 	s.carried = 77.5
-	s.sources = {"crack": 4, "dew": 2}
+	_give(s, "crack", 4)
+	_give(s, "dew", 2)
+	Build.add(s, "reeds", 12.5, -7.25, 1.5)
+	Build.add(s, "spring", 0.0, 0.0, 0.0, false)
+	s.hammer_unlocked = true
+	s.hammer_owned = true
+	s.unlocked_structures = ["reeds"]
+	s.unlocked_pieces = ["straight", "elbow"]
+	s.unlocked_materials = ["earth", "wood"]
 	s.tool_unlocked = 3
 	s.tool_upgrades = {"cup": 2, "palm": 1}
 	s.unlocked_sources = ["crack", "dew", "spring"]
@@ -291,7 +325,7 @@ func test_save_roundtrip() -> void:
 	check(SaveCodec.to_dict(SaveCodec.from_dict(d)) == d, "gidis donus ayni")
 	var json_back: Variant = JSON.parse_string(JSON.stringify(d))
 	var r: GameState = SaveCodec.from_dict(json_back)
-	check(SaveCodec.to_dict(r) == d or (r.tool_level == 3 and r.rate_level == 2 and r.sources.get("crack", 0) == 4), "JSON gidis donus")
+	check(SaveCodec.to_dict(r) == d or (r.tool_level == 3 and r.rate_level == 2 and Build.count(r, "crack") == 4), "JSON gidis donus")
 	check(r.loss_upgrades == s.loss_upgrades and near(r.money, 1234.5), "JSON alanlari")
 
 
@@ -309,7 +343,7 @@ func test_save_corrupt() -> void:
 	var r: GameState = SaveCodec.from_dict(bad)
 	check(r.money == 0.0 and r.total_drops == 0.0 and r.carried == 0.0, "yanlis tur/NaN/inf varsayilan")
 	check(r.tool_level == 0 and r.rate_level == 0, "seviye sinirlari")
-	check(r.sources.is_empty(), "bozuk kaynaklar atildi")
+	check(r.structures.is_empty() and r.counts.is_empty(), "bozuk kaynaklar atildi")
 	check(r.loss_upgrades.size() == 1 and r.loss_upgrades[0] == "rock_bed", "bilinmeyen id atildi, tekrar yok")
 	check(r.total_money_earned >= 0.0 and r.last_seen_unix == 0, "negatif/yanlis tur")
 	var partial: GameState = SaveCodec.from_dict({"money": 50.0, "tool_level": 2.5, "carried": 1.0e9, "tool_level_x": 1})
@@ -386,16 +420,17 @@ func test_tool_upgrade() -> void:
 func test_source_unlock() -> void:
 	var s: GameState = _state()
 	s.money = 1.0e9
-	check(not Economy.buy_source(s, "crack") and s.money == 1.0e9, "kilitsiz kaynak alinamaz")
+	s.hammer_owned = true
+	check(not _place(s, "crack") and s.money == 1.0e9 and s.structures.is_empty(), "kilitsiz kaynak kurulamaz")
 	check(Economy.cost_source_unlock(s, "crack") == 7.0, "catlak kilidi floor(15/2)")
 	check(Economy.cost_source_unlock(s, "dew") == 50.0, "cig kilidi 50")
 	check(Economy.cost_source_unlock(s, "rain_cloud") == 550.0 and Economy.cost_source_unlock(s, "stream_mouth") == 75000.0, "kilit maliyetleri")
 	check(Economy.cost_source_unlock(s, "yok") < 0.0 and not Economy.unlock_source(s, "yok"), "bilinmeyen kaynak kilidi")
 	check(Economy.unlock_source(s, "crack") and Economy.source_unlocked(s, "crack"), "kilit acilir")
 	check(Economy.cost_source_unlock(s, "crack") < 0.0 and not Economy.unlock_source(s, "crack"), "ikinci kez acilmaz")
-	check(Economy.buy_source(s, "crack") and Economy.source_count(s, "crack") == 1, "kilit acikken alinir")
+	check(_place(s, "crack") and Economy.source_count(s, "crack") == 1, "kilit acikken kurulur")
 	check(Economy.cost_source(s, "crack") == 17.0, "adet maliyeti 1,15 carpanli")
-	check(not Economy.buy_source(s, "dew"), "baska kaynagin kilidi ayri")
+	check(not _place(s, "dew"), "baska kaynagin kilidi ayri")
 	var p: GameState = _state()
 	p.money = 6.0
 	check(not Economy.unlock_source(p, "crack") and p.money == 6.0, "para yetmez")
@@ -444,7 +479,7 @@ func test_new_visibility() -> void:
 
 func test_save_new_fields() -> void:
 	var d: Dictionary = SaveCodec.to_dict(_rich_state())
-	check(Cfg.SAVE_VERSION == 2 and d["version"] == 2, "surum 2")
+	check(Cfg.SAVE_VERSION == 3 and d["version"] == 3, "surum 3")
 	var json_back: Variant = JSON.parse_string(JSON.stringify(d))
 	var r: GameState = SaveCodec.from_dict(json_back)
 	check(r.tool_unlocked == 3 and r.canal_unlocked, "kilitler geri yuklenir")
@@ -465,10 +500,13 @@ func test_save_v1_migration() -> void:
 	check(Economy.source_unlocked(r, "crack") and Economy.source_unlocked(r, "dew") and not Economy.source_unlocked(r, "spring"), "sahip olunan kaynaklar acik sayilir")
 	check(not r.canal_unlocked and r.tool_upgrades.is_empty(), "yeni alanlar varsayilan")
 	check(r.loss_upgrades == ["rock_bed"] and r.rate_level == 1, "eski alanlar korunur")
-	check(Economy.buy_source(r, "crack"), "gocten sonra sahip olunan kaynak alinabilir")
+	r.hammer_owned = true
+	check(Build.count(r, "crack") == 3 and Build.count(r, "dew") == 1, "eski kaynak adetleri korunur (yerlestirilmemis yapi)")
+	check(r.structures.size() == 4 and not bool(r.structures[0]["placed"]), "goc yapilari konumsuz")
+	check(Economy.cost_source(r, "crack") == 22.0 and _place(r, "crack") and Build.count(r, "crack") == 4, "gocten sonra yeni crack 4. adet fiyatiyla kurulur")
 	var v0: GameState = SaveCodec.from_dict({"tool_level": 1, "money": 7.0})
 	check(v0.tool_unlocked == 1 and near(v0.money, 7.0), "surumsuz kayit da gocer")
-	check(SaveCodec.from_dict({"version": 3, "money": 5.0}).money == 0.0, "gelecek surum 3 yeni oyun")
+	check(SaveCodec.from_dict({"version": 4, "money": 5.0}).money == 0.0, "gelecek surum 4 yeni oyun")
 
 
 func test_save_new_corrupt() -> void:

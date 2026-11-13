@@ -3,6 +3,7 @@ extends SceneTree
 const Cfg = preload("res://scripts/core/economy_config.gd")
 const InputSetup = preload("res://scripts/core/input_setup.gd")
 const GameScript = preload("res://scripts/game/game.gd")
+const Build = preload("res://scripts/core/build.gd")
 
 var _failures: int = 0
 var _checks: int = 0
@@ -34,10 +35,12 @@ func _init() -> void:
 	check(money > 0.0 and absf(money - _poured_money) < 1e-9, "dokme para ve sinyal")
 	check(g.state.carried == 0.0 and g.state.total_drops == Cfg.TOOLS[0]["capacity"], "dokme sonrasi durum")
 	check(g.income_per_minute() == 0.0, "kaynak yokken gelir 0")
-	g.state.sources["crack"] = 10
+	for i: int in 10:
+		Build.add(g.state, "crack", float(i), 0.0, 0.0)
 	var expect: float = 10 * 0.5 * (1.0 - 0.30) / 5.0 * 60.0
 	check(absf(g.income_per_minute() - expect) < 1e-6, "dakika geliri (%f / %f)" % [g.income_per_minute(), expect])
-	g.state.sources.clear()
+	g.state.structures.clear()
+	g.state.counts.clear()
 
 	g.set_prompt("a")
 	g.set_prompt("a")
@@ -65,24 +68,26 @@ func test_purchases() -> void:
 	g.setup(false)
 	var bought: Array[String] = []
 	g.connect("purchased", func(k: String, i: String) -> void: bought.append(k + ":" + i))
-	check(not g.buy_tool() and not g.buy_rate() and not g.buy_source("crack") and not g.buy_loss("rock_bed"), "para yokken hicbiri alinmaz")
+	check(not g.buy_tool() and not g.buy_rate() and not g.buy_hammer() and not g.buy_loss("rock_bed"), "para yokken hicbiri alinmaz")
 	check(not g.unlock_tool() and not g.upgrade_tool("palm") and not g.unlock_source("crack") and not g.unlock_canal(), "para yokken kilit ve yukseltme yok")
 	check(bought.is_empty() and g.state.tool_level == 0, "basarisiz alimda sinyal ve seviye degismez")
 	g.state.money = 10000.0
 	check(not g.buy_tool() and g.state.tool_level == 0 and g.state.money == 10000.0, "kilitsiz alet dukkanda alinmaz")
-	check(not g.buy_source("crack") and not g.upgrade_tool("cup") and not g.upgrade_tool("yok"), "kilitsiz kaynak ve sahipsiz alet")
+	check(not g.buy_hammer() and not g.upgrade_tool("cup") and not g.upgrade_tool("yok"), "kilitsiz cekic ve sahipsiz alet")
 	check(g.unlock_tool() and g.state.tool_unlocked == 1 and absf(g.state.money - 9992.0) < 1e-9, "alet kilidi acma (8)")
 	check(g.buy_tool() and g.state.tool_level == 1 and absf(g.state.money - (9992.0 - Cfg.TOOLS[1]["cost"])) < 1e-9, "alet alimi")
 	var before: float = g.state.money
 	check(g.upgrade_tool("cup") and g.state.tool_upgrades["cup"] == 1 and absf(g.state.money - (before - 10.0)) < 1e-9, "alet kapasite yukseltme")
 	check(g.buy_rate() and g.state.rate_level == 1, "oran alimi")
-	check(g.unlock_source("crack") and g.buy_source("crack") and g.state.sources["crack"] == 1, "kaynak kilidi ve alimi")
+	check(g.unlock_source("crack"), "kaynak kilidi")
+	g.state.hammer_owned = true
+	check(g.place_structure("crack", 1.0, 2.0, 0.0) and Build.count(g.state, "crack") == 1, "kaynak yapisi kurulur")
 	check(g.buy_loss("rock_bed") and g.state.loss_upgrades.has("rock_bed"), "kayip alimi")
 	check(not g.buy_loss("rock_bed"), "alinmis kayip tekrar alinmaz")
-	check(not g.buy_source("yok") and not g.unlock_source("yok"), "bilinmeyen kaynak alinmaz")
-	check(bought == ["tool_unlock:cup", "tool:cup", "tool_upgrade:cup", "rate:rate", "source_unlock:crack", "source:crack", "loss:rock_bed"], "satin alma sinyalleri (%s)" % str(bought))
+	check(not g.place_structure("yok", 0.0, 0.0, 0.0) and not g.unlock_source("yok"), "bilinmeyen kaynak kurulmaz")
+	check(bought == ["tool_unlock:cup", "tool:cup", "tool_upgrade:cup", "rate:rate", "source_unlock:crack", "loss:rock_bed"], "satin alma sinyalleri (%s)" % str(bought))
 	g.state.money = 0.5
-	check(not g.buy_source("crack") and g.state.sources["crack"] == 1 and g.state.money == 0.5, "para yetmezse false, durum ayni")
+	check(not g.place_structure("crack", 1.0, 2.0, 0.0) and Build.count(g.state, "crack") == 1 and g.state.money == 0.5, "para yetmezse false, durum ayni")
 	g.free()
 	test_canal_wrappers()
 

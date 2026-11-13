@@ -1,5 +1,8 @@
 extends Node
-## Oyunun tek durum sahibi: ekonomi durumu, kanal ızgarası, kayıt ve ipucu metni.
+## Oyunun tek durum sahibi: ekonomi durumu, kanal ağı, serbest yapılar, kayıt ve ipucu metni.
+## Dünya katmanı yerleştirme için can_place_canal / place_canal / remove_canal / rotate_canal / toggle_gate / canal_result ve
+## can_place_structure / place_structure / remove_structure / structures / set_structure_position çağırır;
+## değişimde structures_changed yayılır.
 
 signal poured(drops: float, money: float)
 signal filled(amount: float)
@@ -7,13 +10,17 @@ signal stage_changed(index: int)
 signal prompt_changed(text: String)
 signal purchased(kind: String, id: String)
 signal shop_requested
+signal structures_changed ## Kanal ağı ya da serbest yapılar değişti (kur, sök, döndür, savak)
 
 const GameState = preload("res://scripts/core/game_state.gd")
 const Economy = preload("res://scripts/core/economy.gd")
 const Cfg = preload("res://scripts/core/economy_config.gd")
 const SaveCodec = preload("res://scripts/core/save_codec.gd")
-const CanalGrid = preload("res://scripts/core/canal_grid.gd")
-const CanalFlow = preload("res://scripts/core/canal_flow.gd")
+const CanalNetwork = preload("res://scripts/core/canal_network.gd")
+const CanalNetworkFlow = preload("res://scripts/core/canal_network_flow.gd")
+const Pieces = preload("res://scripts/core/canal_pieces.gd")
+const Build = preload("res://scripts/core/build.gd")
+const BuildCfg = preload("res://scripts/core/build_config.gd")
 
 const SAVE_PATH: String = "user://save_v1.json"
 const SAVE_TMP_PATH: String = "user://save_v1.json.tmp"
@@ -22,7 +29,7 @@ const NO_SAVE_ARG: String = "--no-save"
 const SECONDS_PER_MINUTE: float = 60.0
 
 var state: GameState = GameState.new()
-var canal: CanalGrid = CanalGrid.new()
+var canal: CanalNetwork = CanalNetwork.new()
 var prompt_text: String = ""
 
 var _save_enabled: bool = true
@@ -111,16 +118,29 @@ func upgrade_tool(id: String) -> bool:
 	return _finish_purchase(Economy.upgrade_tool(state, index), "tool_upgrade", id)
 
 
+## Çekiç: kilidi Geliştirmeler'den açılır, dükkândan alınır; yapı kurmak için şarttır.
+func unlock_hammer() -> bool:
+	return _finish_purchase(Economy.unlock_hammer(state), "hammer_unlock", "hammer")
+
+
+func buy_hammer() -> bool:
+	return _finish_purchase(Economy.buy_hammer(state), "hammer", "hammer")
+
+
 func buy_rate() -> bool:
 	return _finish_purchase(Economy.buy_rate(state), "rate", "rate")
 
 
+## Pasif kaynak kilidi. Adet artık çekiçle kurulan yapıdır (place_structure).
 func unlock_source(id: String) -> bool:
 	return _finish_purchase(Economy.unlock_source(state, id), "source_unlock", id)
 
 
-func buy_source(id: String) -> bool:
-	return _finish_purchase(Economy.buy_source(state, id), "source", id)
+## Kamış ve gölge ağacı kilidi (kaynaklar için unlock_source).
+func unlock_structure(kind: String) -> bool:
+	if Build.is_source(kind):
+		return false
+	return _finish_purchase(Build.unlock(state, kind), "structure_unlock", kind)
 
 
 func buy_loss(id: String) -> bool:
@@ -131,7 +151,20 @@ func unlock_canal() -> bool:
 	return _finish_purchase(Economy.unlock_canal(state), "canal_unlock", "canal")
 
 
-## Kanal öğeleri: kanal sistemi açık olmalı, ücret ekonomi parasından düşer, ızgara yalnızca maliyeti verir.
+## Kanal parça türü ve malzeme kilitleri: kanal sistemi açık olmalı.
+func unlock_piece(id: String) -> bool:
+	if not state.canal_unlocked:
+		return false
+	return _finish_purchase(Economy.unlock_piece(state, id), "piece_unlock", id)
+
+
+func unlock_material(id: String) -> bool:
+	if not state.canal_unlocked:
+		return false
+	return _finish_purchase(Economy.unlock_material(state, id), "material_unlock", id)
+
+
+## Kanal öğeleri: kanal sistemi açık olmalı, ücret ekonomi parasından düşer, ağ yalnızca maliyeti verir.
 func open_spring(id: String) -> bool:
 	if not state.canal_unlocked or canal.is_spring_open(id):
 		return false
@@ -167,6 +200,124 @@ func _finish_purchase(ok: bool, kind: String, id: String) -> bool:
 	return true
 
 
+# ---------- Yerleştirme arayüzü (dünya katmanı çağırır) ----------
+
+## Kanal akış sonucu (ağ değişmedikçe önbellekten): input, delivered, leaked, overflow, wasted, flowing, flow_dir, per_spring.
+func canal_result() -> Dictionary:
+	return CanalNetworkFlow.compute_cached(canal, _flow_cache)
+
+
+## Bu parça ve malzemenin şimdi konsa ödenecek fiyatı; bilinmeyen için -1.
+func canal_piece_cost(piece_id: String, material: String) -> int:
+	return canal.cost(piece_id, material)
+
+
+## {ok, reason_tr, cost}. Neden sırası: çekiç, kanal kilidi, bilinmeyen, parça/malzeme kilidi, sınır, dolu hücre, para.
+func can_place_canal(col: int, row: int, piece_id: String, _rotation: int, material: String) -> Dictionary:
+	var cost: int = canal.cost(piece_id, material)
+	var result: Dictionary = {"ok": false, "reason_tr": "", "cost": cost}
+	if not state.hammer_owned:
+		result["reason_tr"] = BuildCfg.REASON_NO_HAMMER_TR
+	elif not state.canal_unlocked:
+		result["reason_tr"] = BuildCfg.REASON_CANAL_LOCKED_TR
+	elif not Pieces.has_piece(piece_id):
+		result["reason_tr"] = BuildCfg.REASON_UNKNOWN_PIECE_TR
+	elif not Pieces.has_material(material):
+		result["reason_tr"] = BuildCfg.REASON_UNKNOWN_MATERIAL_TR
+	elif not state.unlocked_pieces.has(piece_id) or not state.unlocked_materials.has(material):
+		result["reason_tr"] = BuildCfg.REASON_LOCKED_TR
+	elif not canal.in_bounds(col, row):
+		result["reason_tr"] = BuildCfg.REASON_OUT_OF_BOUNDS_TR
+	elif not canal.get_piece(col, row).is_empty():
+		result["reason_tr"] = BuildCfg.REASON_OCCUPIED_TR
+	elif state.money < float(cost):
+		result["reason_tr"] = BuildCfg.REASON_NO_MONEY_TR
+	else:
+		result["ok"] = true
+	return result
+
+
+## Kurallar sağlanırsa parayı düşer, parçayı koyar, kaydeder ve structures_changed yayar.
+func place_canal(col: int, row: int, piece_id: String, rotation: int, material: String) -> bool:
+	var check: Dictionary = can_place_canal(col, row, piece_id, rotation, material)
+	if not check["ok"]:
+		return false
+	var cost: int = check["cost"]
+	if not canal.place(col, row, piece_id, rotation, material):
+		return false
+	state.money -= float(cost)
+	_structures_dirty()
+	return true
+
+
+## Parçayı söker, iadeyi paraya ekler ve döndürür. Çekiç yoksa ya da hücre boşsa 0.
+func remove_canal(col: int, row: int) -> int:
+	if not state.hammer_owned or canal.get_piece(col, row).is_empty():
+		return 0
+	var refund: int = canal.remove(col, row)
+	state.money += float(refund)
+	_structures_dirty()
+	return refund
+
+
+## Parçayı 90 derece saat yönünde çevirir (çekiç gerekir).
+func rotate_canal(col: int, row: int) -> bool:
+	if not state.hammer_owned or not canal.rotate(col, row):
+		return false
+	_structures_dirty()
+	return true
+
+
+## Savağı açar/kapatır (çekiç gerekmez; yalnızca savak parçasında çalışır).
+func toggle_gate(col: int, row: int) -> bool:
+	if not canal.toggle_gate(col, row):
+		return false
+	_structures_dirty()
+	return true
+
+
+## {ok, reason_tr, cost, note_tr}: kamış, gölge ağacı ve pasif kaynak yapıları. Konum kuralları dünya katmanındadır.
+func can_place_structure(kind: String) -> Dictionary:
+	return Build.can_place(state, kind)
+
+
+func place_structure(kind: String, x: float, z: float, rot: float) -> bool:
+	if not Build.place(state, kind, x, z, rot):
+		return false
+	_structures_dirty()
+	return true
+
+
+## İade: söküldükten sonraki adetle hesaplanan fiyatın yarısı (paraya eklenir). Çekiç yoksa ya da indeks geçersizse 0.
+func remove_structure(index: int) -> int:
+	if not state.hammer_owned or index < 0 or index >= state.structures.size():
+		return 0
+	var refund: int = Build.remove(state, index)
+	_structures_dirty()
+	return refund
+
+
+## Yapı listesinin kopyası; öğe: {kind, x, z, rot, placed}. placed=false olanlara dünya katmanı yer verir.
+func structures() -> Array:
+	var out: Array = []
+	for item: Dictionary in state.structures:
+		out.append(item.duplicate())
+	return out
+
+
+## Konumsuz (eski kayıttan göçen) yapıya yer verir.
+func set_structure_position(index: int, x: float, z: float, rot: float) -> bool:
+	if not Build.set_position(state, index, x, z, rot):
+		return false
+	_structures_dirty()
+	return true
+
+
+func _structures_dirty() -> void:
+	structures_changed.emit()
+	save()
+
+
 ## Etkileşim, oyuncu dükkânın önündeyken E'ye basınca çağırır; panel dinler.
 func request_shop() -> void:
 	shop_requested.emit()
@@ -180,8 +331,7 @@ func set_prompt(text: String) -> void:
 
 
 func _canal_delivered() -> float:
-	var result: Dictionary = CanalFlow.compute_cached(canal, _flow_cache)
-	return float(result.get("delivered", 0.0))
+	return float(canal_result().get("delivered", 0.0))
 
 
 # ---------- Kayıt ----------
@@ -191,7 +341,7 @@ func save() -> void:
 		return
 	state.last_seen_unix = int(Time.get_unix_time_from_system())
 	var data: Dictionary = SaveCodec.to_dict(state)
-	data["canal"] = canal.to_dict()
+	data["canal"] = canal.to_dict() # yeni ağ biçimi; eski ızgara biçimi okununca boş ağa döner
 	var file: FileAccess = FileAccess.open(SAVE_TMP_PATH, FileAccess.WRITE)
 	if file == null:
 		push_warning("Kayıt yazılamadı: %s" % error_string(FileAccess.get_open_error()))

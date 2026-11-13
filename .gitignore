@@ -1,7 +1,6 @@
 .godot/
-*.import
-export/
-build/
+/export/
+/build/
 *.apk
 *.exe
 *.pck

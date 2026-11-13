@@ -1,7 +1,7 @@
 extends Node3D
 ## Sahneyi kodla kurar. `--screenshot=<yol>` verilirse ölçüm yapıp çıkar.
 ## Ek argümanlar: --quality=low|medium|high (ayar dosyasına yazmadan), --no-save, --open-menu, --open-shop, --open-upgrades[=aletler|su|kaynaklar|kayip|kanal],
-## --debug-drops/money/tool/carried.
+## --debug-drops/money/tool/carried/canal/hammer.
 
 const Config = preload("res://scripts/core/config.gd")
 const TerrainShape = preload("res://scripts/core/terrain_shape.gd")
@@ -129,6 +129,11 @@ func _ready() -> void:
 		elif arg == "--open-upgrades" or arg.begins_with("--open-upgrades="):
 			open_upgrades = true
 			upgrades_section = arg.substr("--open-upgrades=".length()) if arg.contains("=") else ""
+		elif arg == "--debug-canal":
+			st.canal_unlocked = true
+		elif arg == "--debug-hammer":
+			st.hammer_unlocked = true
+			st.hammer_owned = true
 		elif arg == "--open-shop":
 			open_shop = true
 		elif arg == "--open-menu":

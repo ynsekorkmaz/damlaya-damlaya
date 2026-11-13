@@ -6,7 +6,9 @@ extends CanvasLayer
 
 const Economy = preload("res://scripts/core/economy.gd")
 const Cfg = preload("res://scripts/core/economy_config.gd")
-const CanalConfig = preload("res://scripts/core/canal_config.gd")
+const Pieces = preload("res://scripts/core/canal_pieces.gd")
+const Build = preload("res://scripts/core/build.gd")
+const BuildCfg = preload("res://scripts/core/build_config.gd")
 const GameState = preload("res://scripts/core/game_state.gd")
 const NumberFormat = preload("res://scripts/core/number_format.gd")
 const UiTheme = preload("res://scripts/ui/ui_theme.gd")
@@ -19,6 +21,11 @@ const K_CANAL: String = "canal_unlock"
 const K_SPRING: String = "spring"
 const K_WIDTH: String = "width"
 const K_LINING: String = "lining"
+const K_HAMMER: String = "hammer"
+const K_STRUCT: String = "structure" ## kamış, gölge ağacı
+const K_PIECE: String = "piece"
+const K_MATERIAL: String = "material"
+const K_HEADER: String = "header" ## alt başlık; düğmesi yok, satır listesine girmez
 
 ## arg: --open-upgrades=<arg> için kısa ad.
 const SECTIONS: Array[Dictionary] = [
@@ -44,6 +51,12 @@ const ACT_BUY: String = "Al"
 const ACT_OPEN: String = "Aç"
 const ACT_DONE: String = "Tamamlandı"
 const ACT_SHOP: String = "Dükkânda"
+const ACT_HAMMER: String = "Çekiçle (Q)"
+const HEADER_SPRINGS: String = "Pınarlar"
+const HEADER_UPGRADES: String = "Yükseltmeler"
+const HEADER_PIECES: String = "Parçalar"
+const HEADER_MATERIALS: String = "Malzemeler"
+const MINUS: String = "−"
 
 var game: Node
 var player: Node
@@ -55,7 +68,8 @@ var _content: VBoxContainer
 var _scroll: ScrollContainer
 var _empty_label: Label
 var _side_buttons: Array[Button] = []
-var _rows: Array[Dictionary] = []
+var _rows: Array[Dictionary] = [] ## yalnızca düğmeli satırlar
+var _layout: Array = [] ## son kurulan [tür, id] listesi (alt başlıklar dahil)
 var _section: int = 0
 var _timer: float = 0.0
 var _open: bool = false
@@ -293,6 +307,8 @@ func _wanted(section: int) -> Array:
 			for i: int in Cfg.TOOLS.size():
 				if Economy.tool_row_visible(state, i):
 					out.append([K_TOOL, String(Cfg.TOOLS[i]["id"])])
+			if Economy.hammer_row_visible(state):
+				out.append([K_HAMMER, "hammer"])
 		1:
 			if Economy.rate_row_visible(state):
 				out.append([K_RATE, "rate"])
@@ -304,6 +320,9 @@ func _wanted(section: int) -> Array:
 			for def: Dictionary in Cfg.LOSS_UPGRADES:
 				if Economy.has_loss_upgrade(state, def["id"]) or Economy.loss_visible(state, def["id"]):
 					out.append([K_LOSS, String(def["id"])])
+			for def: Dictionary in BuildCfg.LOSS_STRUCTURES:
+				if Economy.structure_row_visible(state, def["id"]):
+					out.append([K_STRUCT, String(def["id"])])
 		4:
 			_wanted_canal(state, out)
 	return out
@@ -316,21 +335,43 @@ func _wanted_canal(state: GameState, out: Array) -> void:
 	if not state.canal_unlocked:
 		out.append([K_CANAL, "canal"])
 		return
-	for id: String in CanalConfig.SPRING_IDS:
+	var group: Array = []
+	for id: String in canal.call("spring_ids"):
 		var cost: int = canal.call("spring_cost", id)
 		if canal.call("is_spring_open", id) or Economy.is_visible(state, float(cost)):
-			out.append([K_SPRING, id])
+			group.append([K_SPRING, id])
+	_append_group(out, HEADER_SPRINGS, group)
+	group = []
 	if int(canal.get("width_level")) > 0 or Economy.is_visible(state, float(canal.call("width_cost"))):
-		out.append([K_WIDTH, "width"])
+		group.append([K_WIDTH, "width"])
 	if int(canal.get("lining_level")) > 0 or Economy.is_visible(state, float(canal.call("lining_cost"))):
-		out.append([K_LINING, "lining"])
+		group.append([K_LINING, "lining"])
+	_append_group(out, HEADER_UPGRADES, group)
+	group = []
+	for id: String in Pieces.PIECE_IDS:
+		if Economy.piece_row_visible(state, id):
+			group.append([K_PIECE, id])
+	_append_group(out, HEADER_PIECES, group)
+	group = []
+	for id: String in Pieces.MATERIAL_IDS:
+		if Economy.material_row_visible(state, id):
+			group.append([K_MATERIAL, id])
+	_append_group(out, HEADER_MATERIALS, group)
+
+
+## Grup boş değilse alt başlık ve satırlarını ekler.
+func _append_group(out: Array, title: String, group: Array) -> void:
+	if group.is_empty():
+		return
+	out.append([K_HEADER, title])
+	out.append_array(group)
 
 
 func _same_layout(wanted: Array) -> bool:
-	if wanted.size() != _rows.size():
+	if wanted.size() != _layout.size():
 		return false
 	for i: int in wanted.size():
-		if _rows[i]["kind"] != wanted[i][0] or _rows[i]["id"] != wanted[i][1]:
+		if _layout[i][0] != wanted[i][0] or _layout[i][1] != wanted[i][1]:
 			return false
 	return true
 
@@ -373,7 +414,12 @@ func _rebuild(restore_focus: bool) -> void:
 			child.queue_free()
 	_rows.clear()
 	var wanted: Array = _wanted(_section)
+	_layout = wanted
 	for item: Array in wanted:
+		if item[0] == K_HEADER:
+			var header: Label = UiTheme.label(String(item[1]), UiTheme.SECTION_SIZE, UiTheme.SECTION_COLOR)
+			_content.add_child(header)
+			continue
 		_rows.append(_add_row(item[0], item[1]))
 	if wanted.is_empty():
 		_content.add_child(_empty_label)
@@ -411,6 +457,8 @@ func _focus_first_row() -> bool:
 		var button: Button = row["button"]
 		if not button.disabled:
 			button.grab_focus()
+			if row == _rows[0]:
+				_scroll.scroll_vertical = 0 # ilk satırın üstündeki alt başlık da görünsün
 			return true
 	return false
 
@@ -421,6 +469,8 @@ func _move_focus_row(step: int) -> void:
 		var button: Button = _rows[index]["button"]
 		if not button.disabled:
 			button.grab_focus()
+			if index == 0:
+				_scroll.scroll_vertical = 0
 			return
 		index += step
 
@@ -508,6 +558,10 @@ func _describe(state: GameState, kind: String, id: String) -> Dictionary:
 				d["action"] = ACT_DONE
 		K_SOURCE:
 			_describe_source(state, id, d)
+		K_HAMMER:
+			_describe_hammer(state, d)
+		K_STRUCT:
+			_describe_structure(state, id, d)
 		K_LOSS:
 			var ldef: Dictionary = Economy.loss_def(id)
 			d["name"] = ldef["name_tr"]
@@ -553,19 +607,54 @@ func _describe_tool(state: GameState, id: String, d: Dictionary) -> void:
 		d["action"] = ACT_UNLOCK
 
 
+func _describe_hammer(state: GameState, d: Dictionary) -> void:
+	d["name"] = BuildCfg.HAMMER_NAME_TR
+	d["desc"] = BuildCfg.HAMMER_DESC_TR
+	if state.hammer_owned:
+		d["info"] = "Sende\n" + BuildCfg.NOTE_BUILD_HINT_TR
+		d["action"] = ACT_DONE
+	elif state.hammer_unlocked:
+		d["info"] = "Dükkândan satın al (E)"
+		d["action"] = ACT_SHOP
+		d["actionable"] = false
+	else:
+		d["info"] = "Kilitli"
+		d["cost"] = Economy.cost_hammer_unlock(state)
+		d["action"] = ACT_UNLOCK
+
+
 func _describe_source(state: GameState, id: String, d: Dictionary) -> void:
 	var def: Dictionary = Economy.source_def(id)
 	d["name"] = def["name_tr"]
 	d["desc"] = def["desc_tr"]
 	var rate: String = NumberFormat.format_money(def["rate"])
 	if Economy.source_unlocked(state, id):
-		var cost: float = Economy.cost_source(state, id)
-		d["info"] = "%s damla/sn\nSahip: %s" % [rate, NumberFormat.format_int(Economy.source_count(state, id))]
-		d["cost"] = cost
-		d["action"] = ACT_BUY if cost >= 0.0 else ACT_DONE
+		d["info"] = "%s damla/sn  •  Sahip: %s\n%s" % [rate, NumberFormat.format_int(Economy.source_count(state, id)), BuildCfg.NOTE_BUILD_HINT_TR]
+		d["cost"] = Economy.cost_source(state, id)
+		d["action"] = ACT_HAMMER
+		d["actionable"] = false
 	else:
 		d["info"] = "%s damla/sn\nKilitli" % rate
 		d["cost"] = Economy.cost_source_unlock(state, id)
+		d["action"] = ACT_UNLOCK
+
+
+## Kamış / gölge ağacı: "3 / 7 kamış, kayıp −3 puan".
+func _describe_structure(state: GameState, id: String, d: Dictionary) -> void:
+	var def: Dictionary = Build.kind_def(id)
+	d["name"] = def["name_tr"]
+	d["desc"] = def["desc_tr"]
+	var max_count: int = int(def["max_effective"])
+	var amount: int = Build.count(state, id)
+	var effect: String = "%d / %d %s\nkayıp %s%s puan" % [amount, max_count, def["short_tr"], MINUS, NumberFormat.format_int(Build.effective_count(state, id) * float(def["loss_points"]))]
+	if Build.is_unlocked(state, id):
+		d["info"] = effect + "  •  " + BuildCfg.NOTE_BUILD_HINT_TR
+		d["cost"] = Build.next_cost(state, id)
+		d["action"] = ACT_HAMMER
+		d["actionable"] = false
+	else:
+		d["info"] = "Her biri kayıp %s%s puan\nEn çok %d  •  Kilitli" % [MINUS, NumberFormat.format_int(float(def["loss_points"])), max_count]
+		d["cost"] = Build.unlock_cost(state, id)
 		d["action"] = ACT_UNLOCK
 
 
@@ -581,7 +670,7 @@ func _describe_canal(state: GameState, kind: String, id: String, d: Dictionary) 
 		K_SPRING:
 			d["name"] = "%s %s" % [Cfg.CANAL_SPRING_NAME_TR, id]
 			d["desc"] = Cfg.CANAL_SPRING_DESC_TR
-			var flow: String = NumberFormat.format_int(float(CanalConfig.SPRINGS[id]["flow"]))
+			var flow: String = NumberFormat.format_int(float((canal.get("spring_defs") as Dictionary)[id]["flow"]))
 			if canal.call("is_spring_open", id):
 				d["info"] = "Akış: %s damla/sn\nAçık" % flow
 				d["action"] = ACT_DONE
@@ -592,11 +681,35 @@ func _describe_canal(state: GameState, kind: String, id: String, d: Dictionary) 
 		K_WIDTH:
 			d["name"] = Cfg.CANAL_WIDTH_NAME_TR
 			d["desc"] = Cfg.CANAL_WIDTH_DESC_TR
-			_describe_canal_level(canal, "width_level", "width_cost", CanalConfig.WIDTH_MAX_LEVEL, d)
+			_describe_canal_level(canal, "width_level", "width_cost", Pieces.WIDTH_MAX_LEVEL, d)
 		K_LINING:
 			d["name"] = Cfg.CANAL_LINING_NAME_TR
 			d["desc"] = Cfg.CANAL_LINING_DESC_TR
-			_describe_canal_level(canal, "lining_level", "lining_cost", CanalConfig.LINING_MAX_LEVEL, d)
+			_describe_canal_level(canal, "lining_level", "lining_cost", Pieces.LINING_MAX_LEVEL, d)
+		K_PIECE:
+			var pdef: Dictionary = Pieces.get_piece_def(id)
+			d["name"] = pdef["name_tr"]
+			d["desc"] = pdef["desc_tr"]
+			if Economy.piece_unlocked(state, id):
+				d["info"] = "Taban fiyat: %s\nAçık" % NumberFormat.format_int(float(pdef["base_cost"]))
+				d["action"] = ACT_DONE
+			else:
+				d["info"] = "Taban fiyat: %s\nKilitli" % NumberFormat.format_int(float(pdef["base_cost"]))
+				d["cost"] = Economy.cost_piece_unlock(state, id)
+				d["action"] = ACT_UNLOCK
+		K_MATERIAL:
+			var mdef: Dictionary = Pieces.MATERIALS[id]
+			d["name"] = mdef["name_tr"]
+			d["desc"] = mdef["desc_tr"]
+			var leak: String = NumberFormat.format_money(float(mdef["leak"]) * 100.0)
+			var mult: String = NumberFormat.format_money(float(mdef["cost_mult"]))
+			if Economy.material_unlocked(state, id):
+				d["info"] = "Sızıntı: %%%s, fiyat x%s\nAçık" % [leak, mult]
+				d["action"] = ACT_DONE
+			else:
+				d["info"] = "Sızıntı: %%%s, fiyat x%s\nKilitli" % [leak, mult]
+				d["cost"] = Economy.cost_material_unlock(state, id)
+				d["action"] = ACT_UNLOCK
 
 
 func _describe_canal_level(canal: Object, level_prop: String, cost_func: String, max_level: int, d: Dictionary) -> void:
@@ -645,12 +758,20 @@ func _on_press(kind: String, id: String) -> void:
 		K_RATE:
 			ok = game.call("buy_rate")
 		K_SOURCE:
-			if Economy.source_unlocked(state, id):
-				ok = game.call("buy_source", id)
-			else:
+			if not Economy.source_unlocked(state, id):
 				ok = game.call("unlock_source", id)
 		K_LOSS:
 			ok = game.call("buy_loss", id)
+		K_HAMMER:
+			if not state.hammer_unlocked:
+				ok = game.call("unlock_hammer")
+		K_STRUCT:
+			if not Build.is_unlocked(state, id):
+				ok = game.call("unlock_structure", id)
+		K_PIECE:
+			ok = game.call("unlock_piece", id)
+		K_MATERIAL:
+			ok = game.call("unlock_material", id)
 		K_CANAL:
 			ok = game.call("unlock_canal")
 		K_SPRING:

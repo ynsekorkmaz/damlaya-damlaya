@@ -29,6 +29,7 @@ func _init() -> void:
 	test_tempo(results)
 	test_pacing(results)
 	test_last_hour(results)
+	test_first_line(results)
 	print("Kontrol: %d, basarisiz: %d" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -136,3 +137,19 @@ func test_last_hour(results: Array) -> void:
 	check(total > 0.0 and canal / total >= 0.5, "son saatte gelirin en az yarisi kanaldan (%.0f%%)" % (100.0 * canal / maxf(total, 1.0)))
 	check(canal > passive, "son saatte kanal pasiften buyuk")
 	check(hand / maxf(total, 1.0) >= 0.03 and hand / maxf(total, 1.0) <= 0.25, "el ile tasima son saatte %%3-25 (%.0f%%)" % (100.0 * hand / maxf(total, 1.0)))
+
+
+func test_first_line(results: Array) -> void:
+	var best: Dictionary = _find(results, "acgozlu")
+	var line_min: float = float(best["first_line_s"]) / 60.0
+	check(line_min >= 18.0 and line_min <= 26.0, "ilk pinar hatti 18-26. dk'da tamamlanir (%.1f dk)" % line_min)
+	var ms: Dictionary = best["milestones"]
+	check(float(best["first_line_s"]) - float(ms["canal_unlock"]) <= 180.0, "kilitten sonra ilk hat en cok 3 dk (%.1f dk)" % ((float(best["first_line_s"]) - float(ms["canal_unlock"])) / 60.0))
+	check(float(best["jump"]) >= 3.0, "ilk hatla gelir en az 3 kat (x%.1f)" % float(best["jump"]))
+	check(float(best["max_dry_mid_s"]) <= 180.0, "20-60. dk arasi en uzun kuru donem <= 3 dk (%.1f dk)" % (float(best["max_dry_mid_s"]) / 60.0))
+	var rush: Dictionary = _find(results, "erken kanal")
+	var ratio: float = float(rush["end_s"]) / float(_best(results)["end_s"])
+	check(ratio >= 1.27 and ratio <= 1.43, "erken kanal en iyinin 1,30-1,40 kati (x%.2f)" % ratio)
+	# Ilk ~20 dk yavas ve elle: 20. dk'ya kadar gelirin tamami el + ucuz pasif, kanal yok
+	var early: Array = best["early2"]
+	check(early.size() >= 12 and float(early[4]) < 100.0, "ilk 10 dk yavas (8-10. dk %.0f para/dk)" % float(early[4]))

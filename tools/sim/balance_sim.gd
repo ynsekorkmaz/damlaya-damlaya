@@ -109,6 +109,12 @@ static func print_detail(r: Dictionary) -> void:
 		print("  dilim %5.0f dk: %9.0f para/dk  elle %3.0f%% pasif %3.0f%% kanal %3.0f%%  toplam damla %9.0f" % [float(sl["until_min"]), float(sl["money_per_min"]),
 			100.0 * float(sl["hand"]), 100.0 * float(sl["passive"]), 100.0 * float(sl["canal"]), float(sl["drops"])])
 	print("  kalan: ", r["unbought"])
+	var e2: Array = r["early2"]
+	var line: String = "  ilk 30 dk (2 dk dilimleri, para/dk):"
+	for i: int in e2.size():
+		line += " %d-%d:%.0f" % [i * 2, i * 2 + 2, float(e2[i])]
+	print(line)
+	print("  ilk hat: %.1f dk, gelir sicramasi x%.1f, 20-60 dk kuru: %.1f dk" % [float(r["first_line_s"]) / 60.0, float(r["jump"]), float(r["max_dry_mid_s"]) / 60.0])
 	print("  en uzun kuru donem: %.1f dk @ %.1f dk, en ucuz anlamli: %s" % [float(r["max_dry_s"]) / 60.0, float(r["max_dry_at_s"]) / 60.0, r["max_dry_label"]])
 	if OS.get_cmdline_user_args().has("--events"):
 		for e: Dictionary in r["events"]:

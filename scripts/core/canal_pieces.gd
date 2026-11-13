@@ -13,9 +13,9 @@ const DIR_NAMES_TR: Array[String] = ["Kuzey", "Doğu", "Güney", "Batı"]
 const DEFAULT_COLS: int = 14
 const DEFAULT_ROWS: int = 10
 const DEFAULT_SPRINGS: Dictionary = {
-	"A": {"row": 4, "flow": 80.0, "cost": 6000},
-	"B": {"row": 1, "flow": 240.0, "cost": 50000},
-	"C": {"row": 8, "flow": 800.0, "cost": 150000},
+	"A": {"row": 4, "flow": 80.0, "cost": 200},
+	"B": {"row": 1, "flow": 240.0, "cost": 70000},
+	"C": {"row": 8, "flow": 800.0, "cost": 250000},
 }
 ## Eski belgenin 8x5 duzeni (testler icin).
 const LEGACY_COLS: int = 8
@@ -82,8 +82,8 @@ const PIECES: Dictionary = {
 const MATERIAL_IDS: Array[String] = ["earth", "wood", "stone"]
 const MATERIALS: Dictionary = {
 	"earth": {"id": "earth", "name_tr": "Toprak", "desc_tr": "Ucuz ama çok sızdırır.", "leak": 0.05, "cost_mult": 1.0, "unlock_cost": 0},
-	"wood": {"id": "wood", "name_tr": "Ahşap", "desc_tr": "Daha az sızdırır.", "leak": 0.03, "cost_mult": 2.5, "unlock_cost": 2500},
-	"stone": {"id": "stone", "name_tr": "Taş", "desc_tr": "En az sızdırır.", "leak": 0.012, "cost_mult": 6.0, "unlock_cost": 30000},
+	"wood": {"id": "wood", "name_tr": "Ahşap", "desc_tr": "Daha az sızdırır.", "leak": 0.03, "cost_mult": 2.5, "unlock_cost": 4000},
+	"stone": {"id": "stone", "name_tr": "Taş", "desc_tr": "En az sızdırır.", "leak": 0.012, "cost_mult": 6.0, "unlock_cost": 50000},
 }
 
 ## Fiyat formulleri

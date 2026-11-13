@@ -66,6 +66,9 @@ var canal_money_total: float = 0.0
 var new_items_at_30: Array = []
 var recorded_30: bool = false
 var replans: int = 0
+var earned_hist: Array[float] = [] ## her adimin sonunda toplam kazanilan para
+var first_line_step: int = -1
+var max_dry_mid: float = 0.0 ## 20-60. dk arasi en uzun kuru donem
 var min_meaningful_cost: float = 0.0 ## son planlamada alinabilir anlamli en ucuz ilk parti maliyeti
 var min_meaningful_label: String = ""
 var dry_run: float = 0.0
@@ -231,9 +234,9 @@ func _hammer_ops() -> Array:
 func _canal_prereq(pieces: Array, mats: Array) -> Array:
 	var s: GameState = g.state
 	var ops: Array = []
+	ops.append_array(_hammer_ops())
 	if not s.canal_unlocked:
 		ops.append({"t": "canal_unlock"})
-	ops.append_array(_hammer_ops())
 	for id: String in pieces:
 		if not s.unlocked_pieces.has(id):
 			ops.append({"t": "piece_unlock", "id": id})
@@ -415,7 +418,7 @@ func _mill_ops() -> Array:
 
 func _canal_signature() -> String:
 	var s: GameState = g.state
-	return "%d|%d|%d|%d|%d|%d|%d" % [g.canal.version, s.rate_level, int(s.canal_unlocked), int(s.hammer_owned) + 2 * int(s.hammer_unlocked),
+	return "%d|%d|%d|%d|%d|%d|%d|%d" % [int(Economy.canal_section_visible(g.state)), g.canal.version, s.rate_level, int(s.canal_unlocked), int(s.hammer_owned) + 2 * int(s.hammer_unlocked),
 		s.unlocked_pieces.size(), s.unlocked_materials.size(), s.tool_level]
 
 
@@ -465,6 +468,8 @@ static func Build_count(s: GameState, kind: String) -> int:
 
 
 func _canal_candidates() -> Array:
+	if not Economy.canal_section_visible(g.state):
+		return [] # Tab'da kanal bolumu henuz gorunmuyor (CANAL_VISIBLE_DROPS)
 	var sig: String = _canal_signature()
 	if cand_cache.get("sig", "") == sig:
 		return cand_cache["list"]
@@ -556,6 +561,11 @@ func _choose(cands: Array) -> Dictionary:
 			return {}
 	if kind == "canal_rush":
 		bias = maxf(bias, 3.0)
+		if g.canal.open_springs.size() < g.canal.spring_ids().size():
+			# Hepsini birakip kanala kos: pinarlar tamamlanana kadar pasif/kayip alinmaz
+			var focused: Array = pool.filter(func(c: Dictionary) -> bool: return c["tag"] != "passive" and c["tag"] != "loss" and (not String(c["label"]).begins_with("upg:") or g.state.tool_level < 2))
+			if not focused.is_empty():
+				pool = focused
 	# Olcut: bekleme suresi * agirlik + geri odeme suresi (cookie-clicker sezgisi). Kucuk olan iyi.
 	var wait_w: float = float(strat.get("wait_w", 1.0))
 	var limit: float = float(strat.get("horizon", 1.0e12)) ## bundan uzun beklenecek aday elenir (yoksa en kisa bekleyen)
@@ -617,6 +627,9 @@ func _decide(allow_non_tab: bool) -> void:
 	if String(batch["mode"]) != "tab" and not allow_non_tab:
 		return
 	if g.state.money < float(batch["cost"]):
+		return
+	# Kanal ilk kez acilacaksa oyuncu once hat icin gereken parayi biriktirir (kilit + pinar + hat tek seferde).
+	if String(batch["ops"][0]["t"]) == "canal_unlock" and g.state.money < _remaining_cost():
 		return
 	pending = {"kind": "batch", "batch": batch, "dur": batch_duration(batch)}
 
@@ -798,12 +811,17 @@ func run(p_strat: Dictionary) -> Dictionary:
 		busy -= STEP
 		if s.money < min_meaningful_cost:
 			dry_run += STEP
+			if t >= 1200.0 and t <= 3600.0:
+				max_dry_mid = maxf(max_dry_mid, dry_run)
 			if dry_run > max_dry:
 				max_dry = dry_run
 				max_dry_at = t
 				max_dry_label = min_meaningful_label
 		else:
 			dry_run = 0.0
+		earned_hist.append(s.total_money_earned)
+		if first_line_step < 0 and float(g.canal_result().get("delivered", 0.0)) > 0.0:
+			first_line_step = earned_hist.size() - 1
 		var stage: int = Economy.stage_index(s)
 		if stage != last_stage:
 			last_stage = stage
@@ -826,7 +844,7 @@ func run(p_strat: Dictionary) -> Dictionary:
 	var result: Dictionary = {
 		"strategy": String(strat.get("name", strat.get("kind", "?"))), "seed": int(strat.get("seed", 1)),
 		"end_s": end_t, "finished": finished, "milestones": milestones, "stages": stage_times, "slices": slices,
-		"max_gap_s": max_gap, "max_gap_at_s": max_gap_at, "max_dry_s": max_dry, "max_dry_at_s": max_dry_at, "max_dry_label": max_dry_label, "purchases": purchase_times.size(),
+		"max_gap_s": max_gap, "max_gap_at_s": max_gap_at, "early2": early_income(), "max_dry_s": max_dry, "max_dry_mid_s": max_dry_mid, "first_line_s": first_line_time(), "jump": jump_ratio(), "max_dry_at_s": max_dry_at, "max_dry_label": max_dry_label, "purchases": purchase_times.size(),
 		"unbought": remaining_items(g), "replans": replans, "events": events,
 		"hand_money": hand_money_total, "passive_money": passive_money_total, "canal_money": canal_money_total,
 		"last30_purchases": 0, "last30_new_left": new_items_left_at(end_t - 1800.0),
@@ -851,3 +869,40 @@ func new_items_left_at(at: float) -> int:
 			if not n.begins_with("build:") and not n.begins_with("cplace"):
 				left += 1
 	return left
+
+
+## Ilk pinar hattinin gelir verdigi an (sn); yoksa -1.
+func first_line_time() -> float:
+	return -1.0 if first_line_step < 0 else float(first_line_step + 1) * STEP
+
+
+## Ilk hat devreye girince gelir sicramasi: sonraki 2 dk ortalama geliri / onceki 2 dk ortalama geliri; hesaplanamazsa 0.
+func jump_ratio() -> float:
+	var w: int = int(120.0 / STEP)
+	if first_line_step < w or first_line_step + w >= earned_hist.size():
+		return 0.0
+	var before: float = earned_hist[first_line_step] - earned_hist[first_line_step - w]
+	var after: float = earned_hist[first_line_step + w] - earned_hist[first_line_step]
+	return after / maxf(before, 1.0e-9)
+
+
+## Adayin henuz odenmemis partilerinin toplam maliyeti.
+func _remaining_cost() -> float:
+	var total: float = 0.0
+	for i: int in range(batch_i, (committed["batches"] as Array).size()):
+		total += float(committed["batches"][i]["cost"])
+	return total
+
+
+## Ilk 30 dakikanin 2 dakikalik dilimlerinde para/dk (kazanilan para).
+func early_income() -> Array:
+	var out: Array = []
+	var w: int = int(120.0 / STEP)
+	for k: int in 15:
+		var hi: int = (k + 1) * w - 1
+		var lo: int = k * w - 1
+		if hi >= earned_hist.size():
+			break
+		var a: float = earned_hist[lo] if lo >= 0 else 0.0
+		out.append((earned_hist[hi] - a) / 2.0)
+	return out

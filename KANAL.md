@@ -31,8 +31,8 @@ Y kanalda gövde iki kola bağlıdır, ama bir koldan gövdeye girildiyse diğer
 | Malzeme | Sızıntı (hücre başına) | Fiyat çarpanı | Açma |
 |---|---|---|---|
 | earth (Toprak) | 0,05 | 1 | 0 |
-| wood (Ahşap) | 0,03 | 2,5 | 2.500 |
-| stone (Taş) | 0,012 | 6 | 30.000 |
+| wood (Ahşap) | 0,03 | 2,5 | 4.000 |
+| stone (Taş) | 0,012 | 6 | 50.000 |
 
 Taş kaplama seviyesi 0..3 sızıntıyı [1,0; 0,7; 0,4; 0,16] ile çarpar (toprakta 0,05 / 0,035 / 0,02 / 0,008). Y kanal ayrıca yarı sızıntıdır. Genişlik seviyesi 0..4: çıkış başına kapasite `80 * 2^seviye`. Genişlik maliyeti `floor(12000*4^seviye)`, kaplama maliyeti `floor(15000*4^seviye)`.
 
@@ -50,7 +50,7 @@ Bileşen (bağlı düğüm kümesi) başına: kapasite = çıkış sayısı x ç
 
 ## Varsayılan düzen
 
-14 sütun x 10 satır, göl doğuda. Pınarlar batıda: A satır 4 (akış 80, açma 6.000), B satır 1 (240, 50.000), C satır 8 (800, 150.000). Eski 8x5 düzeni (A 2, B 0, C 4; akışlar 60, 180, 480; açma 4.000, 30.000, 200.000) `Pieces.LEGACY_*` ile kurulur ve altı test senaryosu aynen onunla geçer; denge ayarı yalnızca oyun varsayılanlarına (`DEFAULT_*`) dokunur.
+14 sütun x 10 satır, göl doğuda. Pınarlar batıda: A satır 4 (akış 80, açma 200), B satır 1 (240, 70.000), C satır 8 (800, 250.000). Eski 8x5 düzeni (A 2, B 0, C 4; akışlar 60, 180, 480; açma 4.000, 30.000, 200.000) `Pieces.LEGACY_*` ile kurulur ve altı test senaryosu aynen onunla geçer; denge ayarı yalnızca oyun varsayılanlarına (`DEFAULT_*`) dokunur.
 
 ## Oyuna bağlanış
 

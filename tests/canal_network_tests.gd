@@ -528,7 +528,7 @@ func test_costs() -> void:
 	g.upgrade_lining()
 	check(g.width_cost() == 48000 and g.lining_cost() == 60000, "yukseltme ikinci maliyetleri")
 	check(Pieces.width_upgrade_cost(4) == -1 and Pieces.lining_upgrade_cost(3) == -1, "azami seviyede -1")
-	check(g.spring_cost("C") == 150000 and g.spring_cost("Z") == -1, "pinar maliyeti")
+	check(g.spring_cost("C") == 250000 and g.spring_cost("Z") == -1, "pinar maliyeti")
 
 
 func test_refund() -> void:

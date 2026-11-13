@@ -104,8 +104,8 @@ func test_canal_wrappers() -> void:
 	check(not g.unlock_canal(), "kanal kilidi bir kez")
 	var money: float = g.state.money
 	check(g.open_spring("A") and g.canal.is_spring_open("A"), "pinar acilir")
-	check(absf(g.state.money - (money - 6000.0)) < 1e-6, "pinar parayi duser")
-	check(not g.open_spring("A") and absf(g.state.money - (money - 6000.0)) < 1e-6, "acik pinar tekrar acilmaz, para ayni")
+	check(absf(g.state.money - (money - 200.0)) < 1e-6, "pinar parayi duser")
+	check(not g.open_spring("A") and absf(g.state.money - (money - 200.0)) < 1e-6, "acik pinar tekrar acilmaz, para ayni")
 	check(not g.open_spring("Z"), "bilinmeyen pinar")
 	money = g.state.money
 	check(g.upgrade_canal_width() and g.canal.width_level == 1 and absf(g.state.money - (money - 12000.0)) < 1e-6, "genis kanal")

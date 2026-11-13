@@ -27,8 +27,8 @@ const RATE_LEVELS: Array[Dictionary] = [
 	{"drops_per_money": 5.0, "cost": 0.0},
 	{"drops_per_money": 4.0, "cost": 100.0},
 	{"drops_per_money": 3.0, "cost": 5000.0},
-	{"drops_per_money": 2.0, "cost": 50000.0},
-	{"drops_per_money": 1.0, "cost": 450000.0},
+	{"drops_per_money": 2.0, "cost": 80000.0},
+	{"drops_per_money": 1.0, "cost": 700000.0},
 ]
 const RATE_NAME_TR: String = "Dönüşüm oranı"
 
@@ -61,7 +61,7 @@ const LOSS_UPGRADES: Array[Dictionary] = [
 
 # --- Kanal (parca, malzeme, pinar ve yukseltme fiyatlari canal_pieces.gd'de) ---
 const CANAL_UNLOCK_COST: float = 300.0
-const CANAL_VISIBLE_DROPS: float = 2000.0 ## Kanal bolumu toplam damla bu degere ulasinca gorunur
+const CANAL_VISIBLE_DROPS: float = 5000.0 ## Kanal bolumu toplam damla bu degere ulasinca gorunur
 const CANAL_NAME_TR: String = "Kanal sistemi"
 const CANAL_DESC_TR: String = "Pınarlardan göle su taşıyan kanallar döşenebilir."
 const CANAL_SPRING_NAME_TR: String = "Pınar"
@@ -80,7 +80,7 @@ const STAGES: Array[Dictionary] = [
 	{"id": "drop", "name_tr": "Damla", "threshold": 0.0, "text_tr": "Yerde tek bir damla var."},
 	{"id": "pit", "name_tr": "Çukur", "threshold": 50.0, "text_tr": "Toprakta küçük bir çukur açıldı."},
 	{"id": "pond", "name_tr": "Havuz", "threshold": 4000.0, "text_tr": "Artık bir havuz. Kenarında kamışlar bitti, balıklar geldi."},
-	{"id": "lake", "name_tr": "Göl", "threshold": 200000.0, "text_tr": "Damlaya damlaya göl oldu. Kuşlar kondu."},
+	{"id": "lake", "name_tr": "Göl", "threshold": 350000.0, "text_tr": "Damlaya damlaya göl oldu. Kuşlar kondu."},
 	{"id": "great_lake", "name_tr": "Büyük göl", "threshold": 3500000.0, "text_tr": "Karşı kıyı sisin içinde kayboldu."},
 ]
 const GAME_END_DROPS: float = 9000000.0

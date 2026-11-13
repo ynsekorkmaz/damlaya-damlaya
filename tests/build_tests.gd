@@ -341,7 +341,7 @@ func test_canal_unlocks() -> void:
 		check(not g.unlock_piece(id), "ikinci kez acilmaz %s" % id)
 	check(not g.unlock_piece("straight") and not g.unlock_piece("yok") and not g.unlock_material("earth") and not g.unlock_material("yok"), "acik/bilinmeyen kilit acilmaz")
 	check(g.unlock_material("wood") and g.unlock_material("stone") and g.state.unlocked_materials.size() == 3, "malzeme kilitleri")
-	check(Economy.cost_material_unlock(GameState.new(), "wood") == 2500.0 and Economy.cost_material_unlock(GameState.new(), "stone") == 30000.0, "malzeme kilit maliyetleri")
+	check(Economy.cost_material_unlock(GameState.new(), "wood") == 4000.0 and Economy.cost_material_unlock(GameState.new(), "stone") == 50000.0, "malzeme kilit maliyetleri")
 	# Kilit acilinca parca kurulabilir
 	g.state.hammer_owned = true
 	check(g.place_canal(2, 2, "elbow", 1, "wood"), "acilan parca ve malzeme kurulur")
@@ -353,8 +353,8 @@ func test_canal_unlocks() -> void:
 	check(not Economy.piece_row_visible(s, "elbow"), "dirsek kilidi gorunmez")
 	s.total_money_earned = 25.0
 	check(Economy.piece_row_visible(s, "elbow") and not Economy.piece_row_visible(s, "tee"), "dirsek 25 paraya gorunur")
-	s.total_money_earned = 1250.0
-	check(Economy.material_row_visible(s, "wood") and not Economy.material_row_visible(s, "stone"), "ahsap 1250 paraya gorunur")
+	s.total_money_earned = 2000.0
+	check(Economy.material_row_visible(s, "wood") and not Economy.material_row_visible(s, "stone"), "ahsap 2000 paraya gorunur")
 	g.free()
 
 

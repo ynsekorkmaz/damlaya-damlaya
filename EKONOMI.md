@@ -31,8 +31,8 @@ Tüm sayılar `scripts/core/economy_config.gd` ve `build_config.gd` içinde; man
 | 0 | 5 | bedava |
 | 1 | 4 | 100 |
 | 2 | 3 | 5.000 |
-| 3 | 2 | 50.000 |
-| 4 | 1 | 450.000 |
+| 3 | 2 | 80.000 |
+| 4 | 1 | 700.000 |
 
 ## Çekiç
 
@@ -84,8 +84,8 @@ Hepsi olunca kayıp %3.
 
 Kanal ağının mantığı `canal_network.gd` ve `canal_network_flow.gd`'de, fiyatlar ve kilit maliyetleri `canal_pieces.gd`'de (bkz. KANAL.md); ödeme ekonomi parasından yapılır. Oyun artık yalnızca bu ağı kullanır.
 
-- Kanal sistemi kilidi: 300 para; kilit açılana kadar bölüm yalnızca toplam damla >= 2.000 olunca görünür (en iyi oyuncuda yaklaşık 11. dk).
-- Kilit açılınca Tab'ın Kanal bölümü dört alt başlıkta: Pınarlar (A 6.000, B 50.000, C 150.000), Yükseltmeler (geniş kanal 4 seviye, 12.000'den; taş kaplama 3 seviye, 15.000'den), Parçalar (dirsek 50, T 150, Y 400, artı 600, savak 900, değirmen 2.500, su kemeri 3.000, biriktirme havuzu 6.000), Malzemeler (ahşap 2.500, taş 30.000). Düz kanal ve toprak baştan açık.
+- Kanal sistemi kilidi: 300 para; kilit açılana kadar bölüm yalnızca toplam damla >= 5.000 olunca görünür (en iyi oyuncuda yaklaşık 15. dk; kilit yaklaşık 22. dk).
+- Kilit açılınca Tab'ın Kanal bölümü dört alt başlıkta: Pınarlar (A 200, B 70.000, C 250.000), Yükseltmeler (geniş kanal 4 seviye, 12.000'den; taş kaplama 3 seviye, 15.000'den), Parçalar (dirsek 50, T 150, Y 400, artı 600, savak 900, değirmen 2.500, su kemeri 3.000, biriktirme havuzu 6.000), Malzemeler (ahşap 4.000, taş 50.000). Düz kanal ve toprak baştan açık.
 - Parça ve malzemeler çekiçle yerleştirilir (`can_place_canal` / `place_canal`); kilitli parça ya da malzeme yerleştirilemez.
 - Kanal teslimatı her karede göle eklenir (kayıp uygulanmaz).
 
@@ -96,7 +96,7 @@ Kanal ağının mantığı `canal_network.gd` ve `canal_network_flow.gd`'de, fiy
 | Damla | 0 | 0 | 0 | yok |
 | Çukur | 50 | 0 | 0 | yok |
 | Havuz | 4.000 | 2 | 0 | var |
-| Göl | 200.000 | 5 | 3 | var |
+| Göl | 350.000 | 5 | 3 | var |
 | Büyük göl | 3.500.000 | 9 | 6 | var |
 
 - `stage_progress`: aşama içinde `ln(1+toplam)` ile doğrusal 0..1 (son aşama oyun sonuna doğru).

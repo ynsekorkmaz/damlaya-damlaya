@@ -125,7 +125,7 @@ func test_rate() -> void:
 	check(Economy.buy_rate(s) and s.rate_level == 1 and s.money == 0.0, "oran 4:1 alindi")
 	s.carried = 8.0
 	check(near(Economy.pour(s), 2.0), "8 damla 4:1 = 2 para")
-	var expected: Array[float] = [100.0, 5000.0, 50000.0, 450000.0]
+	var expected: Array[float] = [100.0, 5000.0, 80000.0, 700000.0]
 	var t: GameState = _state()
 	for c: float in expected:
 		check(Economy.cost_rate(t) == c, "oran maliyeti %f" % c)
@@ -207,7 +207,7 @@ func _at(drops: float) -> GameState:
 
 
 func test_stages() -> void:
-	var pairs: Array = [[0.0, 0], [49.0, 0], [50.0, 1], [3999.0, 1], [4000.0, 2], [199999.0, 2], [200000.0, 3], [3499999.0, 3], [3500000.0, 4], [2.0e7, 4]]
+	var pairs: Array = [[0.0, 0], [49.0, 0], [50.0, 1], [3999.0, 1], [4000.0, 2], [349999.0, 2], [350000.0, 3], [3499999.0, 3], [3500000.0, 4], [2.0e7, 4]]
 	for p: Array in pairs:
 		check(Economy.stage_index(_at(p[0])) == p[1], "asama %f -> %d" % [p[0], p[1]])
 	check(Economy.stage_progress(_at(0.0)) == 0.0, "ilerleme 0")
@@ -218,7 +218,7 @@ func test_stages() -> void:
 	check(not Economy.is_finished(_at(Cfg.GAME_END_DROPS - 1.0)), "oyun bitmedi")
 	check(Economy.is_finished(_at(Cfg.GAME_END_DROPS)), "oyun bitti")
 	check(Economy.fish_count(_at(4000.0)) == 2 and Economy.fish_count(_at(1.0e7)) == 9, "balik")
-	check(Economy.bird_count(_at(3999.0)) == 0 and Economy.bird_count(_at(200000.0)) == 3 and Economy.bird_count(_at(1.0e7)) == 6, "kus")
+	check(Economy.bird_count(_at(3999.0)) == 0 and Economy.bird_count(_at(350000.0)) == 3 and Economy.bird_count(_at(1.0e7)) == 6, "kus")
 	check(not Economy.reeds_visible(_at(3999.0)) and Economy.reeds_visible(_at(4000.0)), "kamis")
 
 
@@ -236,7 +236,7 @@ func test_lake_fill() -> void:
 	check(Economy.lake_fill(_at(0.0)) == 0.0, "bos gol 0")
 	check(Economy.lake_fill(_at(3500000.0)) == 1.0, "son esikte 1")
 	check(Economy.lake_fill(_at(2.0e7)) == 1.0, "ote 1")
-	for th: float in [50.0, 4000.0, 200000.0, 3500000.0]:
+	for th: float in [50.0, 4000.0, 350000.0, 3500000.0]:
 		var a: float = Economy.lake_fill(_at(th - 0.01))
 		var b: float = Economy.lake_fill(_at(th))
 		check(b >= a and b - a < 1e-3, "esikte surekli %f" % th)
@@ -440,10 +440,10 @@ func test_canal_unlock() -> void:
 	var s: GameState = _state()
 	check(Economy.cost_canal_unlock(s) == 300.0, "kanal kilidi 300")
 	check(not Economy.canal_section_visible(s), "kanal bolumu gizli")
-	s.total_drops = 1999.0
-	check(not Economy.canal_section_visible(s), "1999 damlada gizli")
-	s.total_drops = 2000.0
-	check(Economy.canal_section_visible(s), "2000 damlada gorunur")
+	s.total_drops = 4999.0
+	check(not Economy.canal_section_visible(s), "4999 damlada gizli")
+	s.total_drops = 5000.0
+	check(Economy.canal_section_visible(s), "5000 damlada gorunur")
 	s.money = 299.0
 	check(not Economy.unlock_canal(s) and not s.canal_unlocked, "para yetmez")
 	s.money = 300.0
